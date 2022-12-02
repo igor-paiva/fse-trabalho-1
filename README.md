@@ -6,7 +6,7 @@ Será necessário ter instalado o Make e o GCC.
 
 Para executar:
 
-````
+```
 make
 
 make run
