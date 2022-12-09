@@ -1,30 +1,36 @@
 # Executable
-BINFOLDER := bin/
+BINFOLDER := bin
 # .h
-INCFOLDER := inc/
+INCFOLDER := inc
 # .c
-SRCFOLDER := src/
+SRCFOLDER := src
 # .o
-OBJFOLDER := obj/
+OBJFOLDER := obj
+
+# Address to run the server
+ADDRESS := localhost
+
+# Port to run the server
+PORT := 5000
 
 # Compiler
 CC := gcc
 
-CFLAGS := -g -W -Wall -Wextra -pedantic
+CFLAGS := -g -W -Wall -Wextra -pedantic -lpthread # -lwiringPi
 
-SRCFILES := $(wildcard src/*.c)
+SRCFILES := $(wildcard $(SRCFOLDER)/*.c)
 
-all: $(SRCFILES:src/%.c=obj/%.o)
-	$(CC) $(OBJFOLDER)*.o $(CFLAGS) -o $(BINFOLDER)prog
+all: $(SRCFILES:$(SRCFOLDER)/%.c=$(OBJFOLDER)/%.o)
+	$(CC) $(OBJFOLDER)/*.o $(CFLAGS) -o $(BINFOLDER)/prog
 
-obj/%.o: src/%.c
-	$(CC) $(CFLAGS) -c $< -o $@ -I ./$(INCFOLDER)
+$(OBJFOLDER)/%.o: $(SRCFOLDER)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@ -I ./$(INCFOLDER)/
 
-run: $(BINFOLDER)
-	./$(BINFOLDER)prog
+run:
+	@./$(BINFOLDER)/prog $(ADDRESS) $(PORT)
 
 .PHONY: clean
 
 clean:
-	rm -rf obj/*
-	rm -rf bin/*
+	rm -rf $(OBJFOLDER)/*.*
+	rm -rf $(BINFOLDER)/*
