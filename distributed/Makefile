@@ -1,6 +1,6 @@
 CC = gcc
 CPPC = g++
-LDFLAGS = # -lwiringPi -lwiringPiDev -lpthread
+LDFLAGS = # -lpthread -lwiringPi -lwiringPiDev
 BLDDIR = .
 INCDIR = $(BLDDIR)/inc
 SRCDIR = $(BLDDIR)/src
@@ -17,7 +17,7 @@ EXE = bin/prog
 ADDRESS := localhost
 
 # Port to run the server
-PORT := 10200
+PORT := 10000
 
 all: clean $(EXE)
 

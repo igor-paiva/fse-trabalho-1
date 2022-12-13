@@ -1,6 +1,25 @@
-#include "distributed.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <time.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <malloc.h>
+#include <pthread.h>
+#include <string>
+#include <iostream>
+#include <thread>
 
-#define QLEN 10
+#include "cJSON.h"
+// #include "types.h"
+
+using namespace std;
+
+#define QLEN 1
 #define MAX_REQUEST_DATA 16384
 #define MAX_ERROR_MESSAGE_LENGTH 256
 
@@ -9,9 +28,9 @@ typedef struct ThreadParam {
     struct sockaddr_in client_addr;
 } ThreadParam;
 
-void handle_critical_failure(int rt, char * message) {
+void handle_critical_failure(int rt, const string message) {
     if (rt < 0) {
-        printf("%s\n", message);
+        cout << message << endl;
         exit(1);
     }
 }
@@ -111,36 +130,36 @@ void handle_request(char * request_string, int descriptor) {
     cJSON_Delete(request_data);
 }
 
-void * answer_central_server(void * param) {
+void answer_central_server(ThreadParam * param) {
     char * bufin = NULL;
-    ThreadParam * param_struct = (ThreadParam *) param;
+    // ThreadParam * param_struct = (ThreadParam *) param;
 
     bufin = (char *) malloc(MAX_REQUEST_DATA * sizeof(char));
 
     if (bufin) {
-        while (TRUE) {
+        while (true) {
             int rec_bytes;
             memset(bufin, 0x0, MAX_REQUEST_DATA * sizeof(char));
 
-            rec_bytes = recv(param_struct->accept_sd, bufin, MAX_REQUEST_DATA, 0);
+            rec_bytes = recv(param->accept_sd, bufin, MAX_REQUEST_DATA, 0);
 
             if (rec_bytes >= 0) {
                 /* to remove later */
                 printf("\nReceived request:\n%s\n\n", bufin);
 
-                handle_request(bufin, param_struct->accept_sd);
+                handle_request(bufin, param->accept_sd);
             }
         }
     } else {
-        send_error_response(param_struct->accept_sd, "Falha ao alocar memória");
+        send_error_response(param->accept_sd, "Falha ao alocar memória");
     }
 
     // free(param);
     free(bufin);
 
-    close(param_struct->accept_sd);
+    close(param->accept_sd);
 
-    pthread_exit(NULL);
+    // pthread_exit(NULL);
 }
 
 int main(int argc, char * argv[]) {
@@ -148,7 +167,7 @@ int main(int argc, char * argv[]) {
     int sd, bind_res, listen_res;
 
     if (argc < 3) {
-        printf("You must provide 2 arguments: the server address and port \n");
+        cout << "You must provide 2 arguments: the server address and port" << endl;
         exit(0);
     }
 
@@ -168,38 +187,36 @@ int main(int argc, char * argv[]) {
 
     handle_critical_failure(listen_res, "Fail to listen on socket\n");
 
-    printf("Listening in %s:%s...\n\n", argv[1], argv[2]);
+    cout << "Listening in " << argv[1] << ":" << argv[2] << "...\n" << endl;
 
-    while (TRUE) {
-        pthread_t tid;
+    while (true) {
+        // pthread_t tid;
         int accept_sd;
         socklen_t addr_len;
-        ThreadParam * param;
+        ThreadParam * thread_param;
         struct sockaddr_in client_addr;
 
         addr_len = sizeof(client_addr);
         accept_sd = accept(sd, (struct sockaddr *) &client_addr, &addr_len);
 
         if (accept_sd < 0) {
-            printf(
-                "\n%s:%d: Accept fail\n",
-                inet_ntoa(client_addr.sin_addr),
-                ntohs(client_addr.sin_port)
-            );
+            cout << inet_ntoa(client_addr.sin_addr) << ntohs(client_addr.sin_port) << "=> Accept fail" << endl;
             continue;
         }
 
-        param = (ThreadParam *) malloc (sizeof(ThreadParam));
+        thread_param = (ThreadParam *) malloc (sizeof(ThreadParam));
 
-        if (param == NULL) {
+        if (thread_param == NULL) {
             send_error_response(accept_sd, "Falha ao alocar memória");
             continue;
         }
 
-        param->accept_sd = accept_sd;
-        param->client_addr = client_addr;
+        thread_param->accept_sd = accept_sd;
+        thread_param->client_addr = client_addr;
 
-        pthread_create(&tid, 0, (void * (*)(void *)) answer_central_server, (void *) param);
+        thread (answer_central_server, thread_param).detach();
+
+        // answer_central_server(thread_param);
     }
 
     return 0;
