@@ -2,20 +2,17 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <time.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <malloc.h>
-#include <pthread.h>
 #include <string>
 #include <iostream>
 #include <thread>
+#include <cstring>
+#include <cstdlib>
+#include <sstream>
 
 #include "cJSON.h"
-// #include "types.h"
 
 using namespace std;
 
@@ -82,18 +79,20 @@ void send_response(int descriptor, char * response_msg) {
     send(descriptor, response_msg, MAX_REQUEST_DATA, 0);
 }
 
-void send_error_response(int descriptor, char * error_msg) {
-    char response_str[16 + MAX_ERROR_MESSAGE_LENGTH];
+void send_error_response(int descriptor, const string error_msg) {
+    ostringstream os;
 
-    sprintf(response_str, "{\"error_msg\":\"%s\"}", error_msg);
+    os << "{\"error_msg\":\"" << error_msg << "\"}";
 
-    send(descriptor, response_str, sizeof(response_str), 0);
+    string response_str = os.str();
+
+    send(descriptor, response_str.c_str(), sizeof(response_str), 0);
 }
 
 void handle_requested_action(int descriptor, char * bufout, cJSON * request_data) {
     char * json_str = cJSON_Print(request_data);
 
-    printf("request JSON:\n%s\n", json_str);
+    cout << "request JSON:\n" << json_str << endl;
 
     free(json_str);
 }
@@ -130,9 +129,9 @@ void handle_request(char * request_string, int descriptor) {
     cJSON_Delete(request_data);
 }
 
-void answer_central_server(ThreadParam * param) {
+
+void answer_central_server(int accept_sd, struct sockaddr_in client_addr) {
     char * bufin = NULL;
-    // ThreadParam * param_struct = (ThreadParam *) param;
 
     bufin = (char *) malloc(MAX_REQUEST_DATA * sizeof(char));
 
@@ -141,25 +140,23 @@ void answer_central_server(ThreadParam * param) {
             int rec_bytes;
             memset(bufin, 0x0, MAX_REQUEST_DATA * sizeof(char));
 
-            rec_bytes = recv(param->accept_sd, bufin, MAX_REQUEST_DATA, 0);
+            rec_bytes = recv(accept_sd, bufin, MAX_REQUEST_DATA, 0);
 
             if (rec_bytes >= 0) {
-                /* to remove later */
+                /* TODO: remove later */
                 printf("\nReceived request:\n%s\n\n", bufin);
 
-                handle_request(bufin, param->accept_sd);
+                handle_request(bufin, accept_sd);
             }
         }
     } else {
-        send_error_response(param->accept_sd, "Falha ao alocar memória");
+        send_error_response(accept_sd, "Falha ao alocar memória");
     }
 
     // free(param);
     free(bufin);
 
-    close(param->accept_sd);
-
-    // pthread_exit(NULL);
+    close(accept_sd);
 }
 
 int main(int argc, char * argv[]) {
@@ -167,7 +164,7 @@ int main(int argc, char * argv[]) {
     int sd, bind_res, listen_res;
 
     if (argc < 3) {
-        cout << "You must provide 2 arguments: the server address and port" << endl;
+        cout << "You must provide 2 arguments: the server address and port number" << endl;
         exit(0);
     }
 
@@ -190,7 +187,6 @@ int main(int argc, char * argv[]) {
     cout << "Listening in " << argv[1] << ":" << argv[2] << "...\n" << endl;
 
     while (true) {
-        // pthread_t tid;
         int accept_sd;
         socklen_t addr_len;
         ThreadParam * thread_param;
@@ -214,9 +210,7 @@ int main(int argc, char * argv[]) {
         thread_param->accept_sd = accept_sd;
         thread_param->client_addr = client_addr;
 
-        thread (answer_central_server, thread_param).detach();
-
-        // answer_central_server(thread_param);
+        answer_central_server(accept_sd, client_addr);
     }
 
     return 0;
