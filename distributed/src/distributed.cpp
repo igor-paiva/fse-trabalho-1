@@ -18,7 +18,6 @@ using namespace std;
 
 #define QLEN 1
 #define MAX_REQUEST_DATA 16384
-#define MAX_ERROR_MESSAGE_LENGTH 256
 
 typedef struct ThreadParam {
     int accept_sd;
@@ -75,8 +74,8 @@ void log_receive_request(char * request_data) {
     );
 }
 
-void send_response(int descriptor, char * response_msg) {
-    send(descriptor, response_msg, MAX_REQUEST_DATA, 0);
+void send_response(int descriptor, const string response_msg) {
+    send(descriptor, response_msg.c_str(), response_msg.size(), 0);
 }
 
 void send_error_response(int descriptor, const string error_msg) {
@@ -86,49 +85,62 @@ void send_error_response(int descriptor, const string error_msg) {
 
     string response_str = os.str();
 
-    send(descriptor, response_str.c_str(), sizeof(response_str), 0);
+    send(descriptor, response_str.c_str(), response_str.size(), 0);
 }
 
-void handle_requested_action(int descriptor, char * bufout, cJSON * request_data) {
-    char * json_str = cJSON_Print(request_data);
+string char_pointer_to_string(char * str) {
+    ostringstream os;
 
-    cout << "request JSON:\n" << json_str << endl;
+    os << str;
 
-    free(json_str);
+    return os.str();
+}
+
+void handle_requested_action(int descriptor, cJSON * request_data) {
+    if (!cJSON_HasObjectItem(request_data, "action")) {
+        send_error_response(descriptor, "Ação desconhecida");
+        return;
+    }
+
+    char * action = cJSON_GetObjectItem(request_data, "action")->valuestring;
+
+    if (action == NULL) {
+        send_error_response(descriptor, "Ação desconhecida");
+        return;
+    }
+
+    if (strcmp(action, "test") == 0) {
+        char * json_str = cJSON_Print(request_data);
+
+        cout << "request JSON:\n" << json_str << endl;
+
+        string json_string = char_pointer_to_string(json_str);
+
+        free(json_str);
+
+        send_response(descriptor, json_string);
+    } else {
+        send_error_response(descriptor, "Ação desconhecida");
+    }
 }
 
 void handle_request(char * request_string, int descriptor) {
-    char * bufout;
     cJSON * request_data;
 
     /* logging received requests in the console */
     log_receive_request(request_string);
 
-    bufout = (char *) malloc(MAX_REQUEST_DATA * sizeof(char));
-
-    if (bufout == NULL) {
-        send_error_response(descriptor, "Falha ao alocar memória");
-
-        return;
-    }
-
     request_data = cJSON_Parse(request_string);
 
     if (request_data == NULL) {
         send_error_response(descriptor, "Falha ao alocar memória");
-        free(bufout);
-
         return;
     }
 
-    memset(bufout, 0x0, MAX_REQUEST_DATA * sizeof(char));
+    handle_requested_action(descriptor, request_data);
 
-    handle_requested_action(descriptor, bufout, request_data);
-
-    free(bufout);
     cJSON_Delete(request_data);
 }
-
 
 void answer_central_server(int accept_sd, struct sockaddr_in client_addr) {
     char * bufin = NULL;
