@@ -1,6 +1,6 @@
 CC = gcc
 CPPC = g++
-LDFLAGS = # -lwiringPi -lwiringPiDev -lpthread
+LDFLAGS =
 BLDDIR = .
 INCDIR = $(BLDDIR)/inc
 SRCDIR = $(BLDDIR)/src
