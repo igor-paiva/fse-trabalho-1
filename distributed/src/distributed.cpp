@@ -11,23 +11,38 @@
 #include <cstring>
 #include <cstdlib>
 #include <sstream>
+// #include <chrono>
 
 #include "cJSON.h"
+#include "room.hpp"
 
 using namespace std;
 
 #define QLEN 1
 #define MAX_REQUEST_DATA 16384
+#define MAX_INIT_JSON_SIZE 8192
 
 typedef struct ThreadParam {
     int accept_sd;
     struct sockaddr_in client_addr;
 } ThreadParam;
 
-void handle_critical_failure(int rt, const string message) {
+Room * room;
+
+void print_msg_and_exit(const string message) {
+    cout << message << endl;
+    exit(1);
+}
+
+void handle_critical_failure_int(int rt, const string message) {
     if (rt < 0) {
-        cout << message << endl;
-        exit(1);
+        print_msg_and_exit(message);
+    }
+}
+
+void handle_critical_failure_ptr(void * ptr, const string message) {
+    if (ptr == NULL) {
+        print_msg_and_exit(message);
     }
 }
 
@@ -59,18 +74,18 @@ void log_receive_request(char * request_data) {
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
-    // TODO: Write to CSV
+    // TODO: Write to file
 
     printf(
-        "%s => %02d/%02d/%d  %02d:%02d:%02d %ld GMT\n",
-        request_data,
+        "%02d/%02d/%d  %02d:%02d:%02d %ld GMT\n\t%s\n",
         tm.tm_mon + 1,
         tm.tm_mday,
         tm.tm_year + 1900,
         tm.tm_hour,
         tm.tm_min,
         tm.tm_sec,
-        tm.tm_gmtoff / 3600
+        tm.tm_gmtoff / 3600,
+        request_data
     );
 }
 
@@ -149,12 +164,12 @@ void answer_central_server(int accept_sd, struct sockaddr_in client_addr) {
 
     if (bufin) {
         while (true) {
-            int rec_bytes;
+            size_t rec_bytes;
             memset(bufin, 0x0, MAX_REQUEST_DATA * sizeof(char));
 
             rec_bytes = recv(accept_sd, bufin, MAX_REQUEST_DATA, 0);
 
-            if (rec_bytes >= 0) {
+            if (rec_bytes > 0) {
                 /* TODO: remove later */
                 printf("\nReceived request:\n%s\n\n", bufin);
 
@@ -171,14 +186,60 @@ void answer_central_server(int accept_sd, struct sockaddr_in client_addr) {
     close(accept_sd);
 }
 
+cJSON * read_initialization_json(char * json_path) {
+    FILE * file;
+    char * file_content;
+
+    file_content = (char *) malloc (MAX_INIT_JSON_SIZE * sizeof(char));
+
+    handle_critical_failure_ptr(file_content, "Fail allocate memory to init JSON file content");
+
+    memset(file_content, 0, MAX_INIT_JSON_SIZE * sizeof(char));
+
+    file = fopen(json_path, "rb");
+
+    if (file == NULL) {
+        free(file_content);
+        print_msg_and_exit("Fail to open inicialization JSON");
+    }
+
+    size_t read_bytes = fread(file_content, sizeof(char), MAX_INIT_JSON_SIZE, file);
+
+    fclose(file);
+
+    if (read_bytes <= 0) {
+        free(file_content);
+        print_msg_and_exit("Fail to read inicialization JSON");
+    }
+
+    file_content = (char *) realloc (file_content, read_bytes);
+
+    cJSON * json = cJSON_Parse(file_content);
+
+    if (json == NULL) {
+        free(file_content);
+        print_msg_and_exit("Fail to parse JSON");
+    }
+
+    return json;
+}
+
 int main(int argc, char * argv[]) {
     struct sockaddr_in server_addr;
     int sd, bind_res, listen_res;
 
-    if (argc < 3) {
-        cout << "You must provide 2 arguments: the server address and port number" << endl;
+    if (argc < 2) {
+        cout << "You must provide 1 argument: path to inicialization JSON file" << endl;
         exit(0);
     }
+
+    cJSON * json = read_initialization_json(argv[1]);
+
+    room = new Room(json);
+
+    exit(0);
+
+    // TODO: initialize sensors data thread
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
 
@@ -186,15 +247,15 @@ int main(int argc, char * argv[]) {
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
 
-    handle_critical_failure(sd, "Fail to create the socket\n");
+    handle_critical_failure_int(sd, "Fail to create the socket\n");
 
     bind_res = bind(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
 
-    handle_critical_failure(bind_res, "Bind fail\n");
+    handle_critical_failure_int(bind_res, "Bind fail\n");
 
     listen_res = listen(sd, QLEN);
 
-    handle_critical_failure(listen_res, "Fail to listen on socket\n");
+    handle_critical_failure_int(listen_res, "Fail to listen on socket\n");
 
     cout << "Listening in " << argv[1] << ":" << argv[2] << "...\n" << endl;
 
