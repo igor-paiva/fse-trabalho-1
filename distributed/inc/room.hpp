@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <mutex>
 
 #include "cJSON.h"
 
@@ -21,24 +22,29 @@ class Room {
 public:
     Room(cJSON * json);
 
-    char * to_json_str();
     cJSON * to_json();
+    string to_json_str();
 
     string get_name();
     string get_central_server_ip();
-    int get_central_server_port();
+    uint16_t get_central_server_port();
     string get_room_service_address();
-    int get_room_service_port();
+    uint16_t get_room_service_port();
+    uint16_t get_room_service_client_port();
+
     vector<DeviceData> get_output_devices();
     vector<DeviceData> get_input_devices();
     DeviceData get_temperature_device();
 
 private:
+    mutex room_mutex;
+
     string name;
     string central_server_ip;
-    int central_server_port;
+    uint16_t central_server_port;
     string room_service_address;
-    int room_service_port;
+    uint16_t room_service_port;
+    uint16_t room_service_client_port;
     vector<DeviceData> output_devices;
     vector<DeviceData> input_devices;
     DeviceData temperature_device;

@@ -3,6 +3,7 @@
     "porta_servidor_central": 10310,
     "ip_servidor_distribuido": "192.168.0.52",
     "porta_servidor_distribuido": 10302,
+    "porta_cliente_servidor_distribuido": 10306,
     "nome": "Sala 02",
     "outputs": [
         {

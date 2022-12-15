@@ -1,8 +1,9 @@
 {
-    "ip_servidor_central": "192.168.0.53",
+    "ip_servidor_central": "localhost",
     "porta_servidor_central": 10310,
-    "ip_servidor_distribuido": "192.168.0.52",
+    "ip_servidor_distribuido": "localhost",
     "porta_servidor_distribuido": 10301,
+    "porta_cliente_servidor_distribuido": 10309,
     "nome": "Sala 01",
     "outputs": [
         {

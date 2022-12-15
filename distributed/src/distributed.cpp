@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <mutex>
-// #include <chrono>
+#include <chrono>
 
 #include "cJSON.h"
 #include "room.hpp"
@@ -25,7 +25,8 @@ using namespace std;
 #define MAX_INIT_JSON_SIZE 8192
 
 Room * room;
-int central_server_socket;
+
+int central_server_socket = -1;
 mutex central_server_socket_mutex;
 
 void print_msg_and_exit(const string message) {
@@ -45,7 +46,7 @@ void handle_critical_failure_ptr(void * ptr, const string message) {
     }
 }
 
-void set_server_addr(struct sockaddr_in * serv_addr, const char * addr, int port) {
+void set_socket_addr(struct sockaddr_in * socket_addr, const char * addr, uint16_t port) {
     int errcode;
     struct sockaddr_in * temp_addr;
     struct addrinfo hints, * result;
@@ -63,17 +64,17 @@ void set_server_addr(struct sockaddr_in * serv_addr, const char * addr, int port
         return;
     }
 
-    serv_addr->sin_family = AF_INET;
+    socket_addr->sin_family = AF_INET;
     temp_addr = (struct sockaddr_in *) result->ai_addr;
-    serv_addr->sin_addr = temp_addr->sin_addr;
-    serv_addr->sin_port = htons(port);
+    socket_addr->sin_addr = temp_addr->sin_addr;
+    socket_addr->sin_port = htons(port);
 }
 
-void log_receive_request(char * request_data) {
+void log_receive_request(string request_data) {
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
-    // TODO: Write to file
+    // TODO: Write to file (this is not mandatory)
 
     printf(
         "%02d/%02d/%d  %02d:%02d:%02d %ld GMT\n\t%s\n",
@@ -84,34 +85,87 @@ void log_receive_request(char * request_data) {
         tm.tm_min,
         tm.tm_sec,
         tm.tm_gmtoff / 3600,
-        request_data
+        request_data.c_str()
     );
 }
 
-void send_response(int descriptor, const string response_msg) {
-    send(descriptor, response_msg.c_str(), response_msg.size(), 0);
+size_t send_message_socket(int descriptor, const string message) {
+    return send(descriptor, message.c_str(), message.size(), 0);
 }
 
-void send_error_response(int descriptor, const string error_msg) {
+size_t send_error_response(int descriptor, const string error_msg) {
     ostringstream os;
 
     os << "{\"error_msg\":\"" << error_msg << "\"}";
 
     string response_str = os.str();
 
-    send(descriptor, response_str.c_str(), response_str.size(), 0);
+    return send_message_socket(descriptor, response_str);
 }
 
-void handle_requested_action(int descriptor, cJSON * request_data) {
+size_t receive_message_socket(int descriptor, void * buffer, size_t to_read_bytes) {
+    return recv(descriptor, buffer, to_read_bytes, 0);
+}
+
+size_t send_message_to_central_server(const string message) {
+    size_t send_ret;
+
+    lock_guard<mutex> lock(central_server_socket_mutex);
+
+    send_ret = send_message_socket(central_server_socket, message);
+
+    return send_ret;
+}
+
+size_t send_error_message_to_central_server(const string error_msg) {
+    size_t send_ret;
+
+    lock_guard<mutex> lock(central_server_socket_mutex);
+
+    send_ret = send_error_response(central_server_socket, error_msg);
+
+    return send_ret;
+}
+
+state receive_message_from_central_server(string & string_message) {
+    char * buffer;
+    size_t recv_ret;
+
+    buffer = (char *) malloc (MAX_REQUEST_DATA * sizeof(char));
+
+    if (buffer == NULL) return ALLOC_FAIL;
+
+    memset(buffer, 0x0, MAX_REQUEST_DATA * sizeof(char));
+
+    central_server_socket_mutex.lock();
+
+    recv_ret = receive_message_socket(central_server_socket, buffer, MAX_REQUEST_DATA);
+
+    central_server_socket_mutex.unlock();
+
+    if (recv_ret < 1) return FAIL_TO_READ_FROM_SOCKET;
+
+    string_message = buffer;
+
+    return SUCCESS;
+}
+
+void set_central_server_socket(int socket_fd) {
+    lock_guard<mutex> lock(central_server_socket_mutex);
+
+    central_server_socket = socket_fd;
+}
+
+void handle_requested_action(cJSON * request_data) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
-        send_error_response(descriptor, "Ação desconhecida");
+        send_error_message_to_central_server("Ação desconhecida");
         return;
     }
 
     char * action = cJSON_GetObjectItem(request_data, "action")->valuestring;
 
     if (action == NULL) {
-        send_error_response(descriptor, "Ação desconhecida");
+        send_error_message_to_central_server("Ação desconhecida");
         return;
     }
 
@@ -124,57 +178,97 @@ void handle_requested_action(int descriptor, cJSON * request_data) {
 
         free(json_str);
 
-        send_response(descriptor, json_string);
+        send_message_to_central_server(json_string);
     } else {
-        send_error_response(descriptor, "Ação desconhecida");
+        send_error_message_to_central_server("Ação desconhecida");
     }
 }
 
-void handle_request(char * request_string, int descriptor) {
+void handle_request(string request_message) {
     cJSON * request_data;
 
     /* logging received requests in the console */
-    log_receive_request(request_string);
+    log_receive_request(request_message);
 
-    request_data = cJSON_Parse(request_string);
+    request_data = cJSON_Parse(request_message.c_str());
 
     if (request_data == NULL) {
-        send_error_response(descriptor, "Falha ao alocar memória");
+        send_error_message_to_central_server("Falha ao alocar memória");
         return;
     }
 
-    handle_requested_action(descriptor, request_data);
+    handle_requested_action(request_data);
 
     cJSON_Delete(request_data);
 }
 
 void answer_central_server(int accept_sd, struct sockaddr_in client_addr) {
-    char * bufin = NULL;
+    while (true) {
+        string message;
 
-    bufin = (char *) malloc(MAX_REQUEST_DATA * sizeof(char));
+        state recv_state = receive_message_from_central_server(message);
 
-    if (bufin) {
-        while (true) {
-            size_t rec_bytes;
-            memset(bufin, 0x0, MAX_REQUEST_DATA * sizeof(char));
-
-            rec_bytes = recv(accept_sd, bufin, MAX_REQUEST_DATA, 0);
-
-            if (rec_bytes > 0) {
-                /* TODO: remove later */
-                printf("\nReceived request:\n%s\n\n", bufin);
-
-                handle_request(bufin, accept_sd);
-            }
+        if (is_success(recv_state)) {
+            handle_request(message);
+        } else {
+            send_error_message_to_central_server(
+                recv_state == ALLOC_FAIL ? "Falha ao alocar memória" : "Ocorreu um erro ao processar a requisição"
+            );
         }
-    } else {
-        send_error_response(accept_sd, "Falha ao alocar memória");
     }
 
-    // free(param);
-    free(bufin);
-
     close(accept_sd);
+}
+
+void send_existence_to_server(
+    const char * server_hostname,
+    uint16_t server_port
+    // const char * local_hostname,
+    // uint16_t local_port
+) {
+    int sd;
+    bool error = false;
+    // struct sockaddr_in local_addr;
+    struct sockaddr_in server_addr;
+
+    memset((char *) &server_addr, 0, sizeof(server_addr));
+    set_socket_addr(&server_addr, server_hostname, server_port);
+
+    // memset((char *) &local_addr, 0, sizeof(local_addr));
+    // set_socket_addr(&local_addr, local_hostname, local_port);
+
+    while (true) {
+        cout << "Trying to warn central server of this room existence...\n" << endl;
+
+        sd = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (sd < 0) error = true;
+
+        // Trying not to use another student port (this doesnt work and I dont know why)
+        // if (bind(sd, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0) {
+        //     // cout << "Bind fail" << endl;
+        //     cout << "Failed to bind socket! " << strerror(errno) << endl;
+        //     error = true;
+        // }
+
+        if (connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0)
+            error = true;
+
+        if (!error) {
+            string message = room->to_json_str();
+
+            if (send_message_socket(sd, message) < message.size())
+                error = true;
+        }
+
+        if (error) {
+            error = false;
+            this_thread::sleep_for(1s);
+        } else {
+            close(sd);
+            break;
+        }
+    }
 }
 
 cJSON * read_initialization_json(char * json_path) {
@@ -216,8 +310,8 @@ cJSON * read_initialization_json(char * json_path) {
 }
 
 int main(int argc, char * argv[]) {
-    struct sockaddr_in server_addr;
     int sd, bind_res, listen_res;
+    struct sockaddr_in server_addr;
 
     if (argc < 2) {
         cout << "You must provide 1 argument: path to inicialization JSON file" << endl;
@@ -228,12 +322,20 @@ int main(int argc, char * argv[]) {
 
     room = new Room(json);
 
+    send_existence_to_server(
+        room->get_central_server_ip().c_str(),
+        room->get_central_server_port()
+        // room->get_room_service_address().c_str(),
+        // room->get_room_service_client_port()
+    );
+
+    cout << "Central server was warned of this room existence...\n" << endl;
+
     // TODO: initialize sensors data thread
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
 
-    // TODO: use JSON port
-    set_server_addr(&server_addr, room->get_room_service_address().c_str(), room->get_room_service_port());
+    set_socket_addr(&server_addr, room->get_room_service_address().c_str(), room->get_room_service_port());
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -246,8 +348,6 @@ int main(int argc, char * argv[]) {
     listen_res = listen(sd, QLEN);
 
     handle_critical_failure_int(listen_res, "Fail to listen on socket\n");
-
-    cout << "Listening in " << argv[1] << ":" << argv[2] << "...\n" << endl;
 
     while (true) {
         int accept_sd;
@@ -262,14 +362,12 @@ int main(int argc, char * argv[]) {
             continue;
         }
 
-        central_server_socket_mutex.lock();
-
-        central_server_socket = accept_sd;
-
-        central_server_socket_mutex.unlock();
+        set_central_server_socket(accept_sd);
 
         answer_central_server(accept_sd, client_addr);
     }
+
+    delete room;
 
     return 0;
 }

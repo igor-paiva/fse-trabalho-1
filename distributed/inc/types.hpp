@@ -28,7 +28,8 @@ typedef enum {
     JSON_ITEM_ADD_FAIL,
     JSON_ITEM_PRINT_FAIL,
     JSON_ITEM_CREATE_FAIL,
-    UNEXPECTED_JSON_KEY
+    UNEXPECTED_JSON_KEY,
+    FAIL_TO_READ_FROM_SOCKET
 } error_state;
 
 bool is_error(state value);
