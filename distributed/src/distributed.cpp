@@ -11,10 +11,12 @@
 #include <cstring>
 #include <cstdlib>
 #include <sstream>
+#include <mutex>
 // #include <chrono>
 
 #include "cJSON.h"
 #include "room.hpp"
+#include "types.hpp"
 
 using namespace std;
 
@@ -22,12 +24,9 @@ using namespace std;
 #define MAX_REQUEST_DATA 16384
 #define MAX_INIT_JSON_SIZE 8192
 
-typedef struct ThreadParam {
-    int accept_sd;
-    struct sockaddr_in client_addr;
-} ThreadParam;
-
 Room * room;
+int central_server_socket;
+mutex central_server_socket_mutex;
 
 void print_msg_and_exit(const string message) {
     cout << message << endl;
@@ -46,7 +45,7 @@ void handle_critical_failure_ptr(void * ptr, const string message) {
     }
 }
 
-void set_server_addr(struct sockaddr_in * serv_addr, char * addr, char * port) {
+void set_server_addr(struct sockaddr_in * serv_addr, const char * addr, int port) {
     int errcode;
     struct sockaddr_in * temp_addr;
     struct addrinfo hints, * result;
@@ -67,7 +66,7 @@ void set_server_addr(struct sockaddr_in * serv_addr, char * addr, char * port) {
     serv_addr->sin_family = AF_INET;
     temp_addr = (struct sockaddr_in *) result->ai_addr;
     serv_addr->sin_addr = temp_addr->sin_addr;
-    serv_addr->sin_port = htons(atoi(port));
+    serv_addr->sin_port = htons(port);
 }
 
 void log_receive_request(char * request_data) {
@@ -101,14 +100,6 @@ void send_error_response(int descriptor, const string error_msg) {
     string response_str = os.str();
 
     send(descriptor, response_str.c_str(), response_str.size(), 0);
-}
-
-string char_pointer_to_string(char * str) {
-    ostringstream os;
-
-    os << str;
-
-    return os.str();
 }
 
 void handle_requested_action(int descriptor, cJSON * request_data) {
@@ -237,13 +228,12 @@ int main(int argc, char * argv[]) {
 
     room = new Room(json);
 
-    exit(0);
-
     // TODO: initialize sensors data thread
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
 
-    set_server_addr(&server_addr, argv[1], argv[2]);
+    // TODO: use JSON port
+    set_server_addr(&server_addr, room->get_room_service_address().c_str(), room->get_room_service_port());
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -262,7 +252,6 @@ int main(int argc, char * argv[]) {
     while (true) {
         int accept_sd;
         socklen_t addr_len;
-        ThreadParam * thread_param;
         struct sockaddr_in client_addr;
 
         addr_len = sizeof(client_addr);
@@ -273,15 +262,11 @@ int main(int argc, char * argv[]) {
             continue;
         }
 
-        thread_param = (ThreadParam *) malloc (sizeof(ThreadParam));
+        central_server_socket_mutex.lock();
 
-        if (thread_param == NULL) {
-            send_error_response(accept_sd, "Falha ao alocar memória");
-            continue;
-        }
+        central_server_socket = accept_sd;
 
-        thread_param->accept_sd = accept_sd;
-        thread_param->client_addr = client_addr;
+        central_server_socket_mutex.unlock();
 
         answer_central_server(accept_sd, client_addr);
     }
