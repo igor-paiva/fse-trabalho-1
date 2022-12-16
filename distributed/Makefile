@@ -1,6 +1,6 @@
 CC = gcc
 CPPC = g++
-LDFLAGS = # -lwiringPi -lwiringPiDev
+LDFLAGS = -lwiringPi -lwiringPiDev -lpthread
 BLDDIR = .
 INCDIR = $(BLDDIR)/inc
 SRCDIR = $(BLDDIR)/src
@@ -12,12 +12,6 @@ SRCC = $(wildcard $(SRCDIR)/*.c)
 OBJC = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRCC))
 OBJ = $(OBJC) $(OBJCPP)
 EXE = bin/prog
-
-# Address to run the server
-ADDRESS := localhost
-
-# Port to run the server
-PORT := 10000
 
 all: $(EXE)
 
@@ -33,7 +27,7 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
 run:
-	@./$(EXE) $(ADDRESS) $(PORT)
+	@./$(EXE) app_data/room_1.json
 
 .PHONY: clean
 
