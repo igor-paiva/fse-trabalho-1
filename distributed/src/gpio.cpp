@@ -43,7 +43,7 @@ state GpioInterface::write_pin(int pin, bool value) {
 
     unordered_map<int, int> pins_map = get_wiringpi_pins_map();
 
-    pinMode(pins_map[pin], INPUT);
+    pinMode(pins_map[pin], OUTPUT);
 
     digitalWrite(pins_map[pin], value ? HIGH : LOW);
 
@@ -56,7 +56,7 @@ state GpioInterface::read_pin(int pin, bool * value) {
 
     unordered_map<int, int> pins_map = get_wiringpi_pins_map();
 
-    pinMode(pins_map[pin], OUTPUT);
+    pinMode(pins_map[pin], INPUT);
 
     if (digitalRead(pins_map[pin]) == HIGH) {
         *value = true;
