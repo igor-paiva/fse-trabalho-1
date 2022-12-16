@@ -17,6 +17,7 @@
 #include "cJSON.h"
 #include "room.hpp"
 #include "types.hpp"
+#include "gpio.hpp"
 
 using namespace std;
 
@@ -156,6 +157,24 @@ void set_central_server_socket(int socket_fd) {
     central_server_socket = socket_fd;
 }
 
+void change_pin_value_action(bool value, DeviceData * data) {
+    if (data->pin_mode != OUTPUT) {
+        send_error_message_to_central_server("Não é possível escrever em pino de entrada");
+        return;
+    }
+
+    if (data->value != value) {
+        state ret = GpioInterface::write_pin(data->gpio, value);
+
+        if (is_success(ret))
+            send_message_to_central_server("{\"success\":true}");
+        else
+            send_error_message_to_central_server(value ? "Falha ao ativar" : "Falha ao desativar");
+    } else {
+        send_error_message_to_central_server(value ? "Já está ativado" : "Já está desativado");
+    }
+}
+
 void handle_requested_action(cJSON * request_data) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
         send_error_message_to_central_server("Ação desconhecida");
@@ -163,22 +182,24 @@ void handle_requested_action(cJSON * request_data) {
     }
 
     char * action = cJSON_GetObjectItem(request_data, "action")->valuestring;
+    char * tag = cJSON_GetObjectItem(request_data, "tag")->valuestring;
 
-    if (action == NULL) {
+    if (action == NULL || tag == NULL) {
         send_error_message_to_central_server("Ação desconhecida");
         return;
     }
 
-    if (strcmp(action, "test") == 0) {
-        char * json_str = cJSON_Print(request_data);
+    unordered_map<string, DeviceData> devices_map = room->get_devices_map();
 
-        cout << "request JSON:\n" << json_str << endl;
+    if (devices_map.count(tag) == 0)
+        send_error_message_to_central_server("Tag desconhecida");
 
-        string json_string = char_pointer_to_string(json_str);
+    DeviceData data = devices_map[tag];
 
-        free(json_str);
-
-        send_message_to_central_server(json_string);
+    if (strcmp(action, "activate") == 0) {
+        change_pin_value_action(true, &data);
+    } else if (strcmp(action, "deactivate") == 0) {
+        change_pin_value_action(false, &data);
     } else {
         send_error_message_to_central_server("Ação desconhecida");
     }

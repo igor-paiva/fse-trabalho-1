@@ -29,16 +29,20 @@ vector<DeviceData> Room::get_devices_data(cJSON * json, string item) {
         int array_size = cJSON_GetArraySize(devices_array);
 
         for (int i = 0; i < array_size; i++) {
-            cJSON * item = cJSON_GetArrayItem(devices_array, i);
+            cJSON * json_item = cJSON_GetArrayItem(devices_array, i);
 
-            if (cJSON_IsObject(item)) {
+            if (cJSON_IsObject(json_item)) {
                 DeviceData device_data;
 
-                device_data.gpio = cJSON_GetObjectItem(item, "gpio")->valueint;
-                device_data.type = cJSON_GetObjectItem(item, "type")->valuestring;;
-                device_data.tag = cJSON_GetObjectItem(item, "tag")->valuestring;
+                device_data.gpio = cJSON_GetObjectItem(json_item, "gpio")->valueint;
+                device_data.type = cJSON_GetObjectItem(json_item, "type")->valuestring;;
+                device_data.tag = cJSON_GetObjectItem(json_item, "tag")->valuestring;
+                device_data.pin_mode = item == "outputs" ? OUTPUT : INPUT;
+                device_data.value = false;
 
                 devices_data.push_back(device_data);
+
+                this->devices_map[device_data.tag] = device_data;
             }
         }
     }
@@ -121,6 +125,12 @@ vector<DeviceData> Room::get_input_devices() {
 
     return this->input_devices;
 };
+
+unordered_map<string, DeviceData> Room::get_devices_map() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->devices_map;
+}
 
 DeviceData Room::get_temperature_device() {
     lock_guard<mutex> lock(this->room_mutex);

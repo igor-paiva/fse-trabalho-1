@@ -5,16 +5,23 @@
 #include <vector>
 #include <iostream>
 #include <mutex>
+#include <unordered_map>
 
 #include "cJSON.h"
 
 using namespace std;
+
+typedef enum {
+    OUTPUT = 1,
+    INPUT,
+} pin_mode_t;
 
 typedef struct {
     string type;
     string tag;
     int gpio;
     bool value;
+    pin_mode_t pin_mode;
 } DeviceData;
 
 class Room {
@@ -36,6 +43,8 @@ public:
     vector<DeviceData> get_input_devices();
     DeviceData get_temperature_device();
 
+    unordered_map<string, DeviceData> get_devices_map();
+
 private:
     mutex room_mutex;
 
@@ -48,6 +57,7 @@ private:
     vector<DeviceData> output_devices;
     vector<DeviceData> input_devices;
     DeviceData temperature_device;
+    unordered_map<string, DeviceData> devices_map;
 
     void initialize_data(cJSON * json);
     vector<DeviceData> get_devices_data(cJSON * json, string item);
