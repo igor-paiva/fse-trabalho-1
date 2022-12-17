@@ -232,6 +232,7 @@ void monitor_sensor(DeviceData device_data) {
 
         state get_state = room->get_device_value(device_data.tag, &current_value);
 
+        // TODO: remove this
         cout << "Monitorando " << device_data.tag << ". Valor lido: " << read_value << ". Valor atual: " << current_value << endl;
 
         if (is_success(read_state) && is_success(get_state) && current_value != read_value) {
@@ -240,6 +241,7 @@ void monitor_sensor(DeviceData device_data) {
             send_sensor_update_message(device_data.tag, read_value);
         }
 
+        // TODO: remove this
         cout << endl << endl;
 
         this_thread::sleep_for(50ms);
@@ -251,6 +253,7 @@ void start_sensors_threads() {
 
     for (DeviceData data : input_devices) {
         if (data.type == "presenca" || data.type == "fumaca" || data.type == "janela" || data.type == "porta") {
+            // TODO: remove this
             cout << data.tag << endl;
 
             thread (monitor_sensor, data).detach();
