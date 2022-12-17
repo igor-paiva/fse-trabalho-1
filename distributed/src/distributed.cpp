@@ -75,9 +75,8 @@ void change_pin_value_action(int server_sd, bool value, DeviceData * data) {
     if (is_success(get_state) && current_value != value) {
         state ret = GpioInterface::write_pin(data->gpio, value);
 
-        // TODO: create a method to send a sucess response (does it have any keys? we can passa a cJSON * and check if it is NULL)
         if (is_success(ret))
-            Messager::send_message_socket(server_sd, "{\"success\":true}");
+            Messager::send_success_message(server_sd, NULL);
         else
             Messager::send_error_message(server_sd, value ? "Falha ao ativar" : "Falha ao desativar");
     } else {
