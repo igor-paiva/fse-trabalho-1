@@ -115,8 +115,17 @@ state Messager::send_string_message(string hostname, uint16_t port, string messa
     return SUCCESS;
 }
 
-void Messager::send_async_string_message(string hostname, uint16_t port, string message) {
-    thread (send_string_message, hostname, port, message, false).detach();
+state Messager::send_async_string_message(string hostname, uint16_t port, string message) {
+    int socket_descriptor;
+    state connection_state;
+
+    connection_state = connect_to_socket(hostname, port, &socket_descriptor);
+
+    if (is_error(connection_state)) return connection_state;
+
+    thread (send_message_socket, socket_descriptor, message).detach();
+
+    return SUCCESS;
 }
 
 state Messager::send_json_message(
@@ -166,14 +175,22 @@ state Messager::send_json_response(
     return try_send_json_message(socket_descriptor, json, close_socket, delete_json);
 }
 
-void Messager::send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json) {
+state Messager::send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json) {
     string message;
+    int socket_descriptor;
+    state connection_state;
+
+    connection_state = connect_to_socket(hostname, port, &socket_descriptor);
+
+    if (is_error(connection_state)) return connection_state;
 
     message = cJSON_PrintUnformatted(json);
 
     if (delete_json) cJSON_Delete(json);
 
-    thread (send_string_message, hostname, port, message, false).detach();
+    thread (send_message_socket, socket_descriptor, message).detach();
+
+    return SUCCESS;
 }
 
 state Messager::receive_message_from_socket(int descriptor, string & string_message) {
