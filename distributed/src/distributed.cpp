@@ -18,6 +18,7 @@
 #include "room.hpp"
 #include "types.hpp"
 #include "gpio.hpp"
+#include "messager.hpp"
 
 using namespace std;
 
@@ -244,52 +245,19 @@ void answer_central_server(int accept_sd, struct sockaddr_in client_addr) {
     close(accept_sd);
 }
 
-void send_existence_to_server(
-    const char * server_hostname,
-    uint16_t server_port
-    // const char * local_hostname,
-    // uint16_t local_port
-) {
-    int sd;
-    bool error = false;
-    // struct sockaddr_in local_addr;
-    struct sockaddr_in server_addr;
-
-    memset((char *) &server_addr, 0, sizeof(server_addr));
-    set_socket_addr(&server_addr, server_hostname, server_port);
-
-    // memset((char *) &local_addr, 0, sizeof(local_addr));
-    // set_socket_addr(&local_addr, local_hostname, local_port);
-
+void send_existence_to_server(string server_hostname, uint16_t server_port) {
     while (true) {
         cout << "Trying to warn central server of this room existence...\n" << endl;
 
-        sd = socket(AF_INET, SOCK_STREAM, 0);
+        state send_state = Messager::send_string_message(
+            server_hostname,
+            server_port,
+            room->to_json_str()
+        );
 
-        if (sd < 0) error = true;
-
-        // Trying not to use another student port (this doesnt work and I dont know why)
-        // if (bind(sd, (struct sockaddr *) &local_addr, sizeof(local_addr)) < 0) {
-        //     // cout << "Bind fail" << endl;
-        //     cout << "Failed to bind socket! " << strerror(errno) << endl;
-        //     error = true;
-        // }
-
-        if (connect(sd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0)
-            error = true;
-
-        if (!error) {
-            string message = room->to_json_str();
-
-            if (send_message_socket(sd, message) < message.size())
-                error = true;
-        }
-
-        if (error) {
-            error = false;
+        if (is_error(send_state)) {
             this_thread::sleep_for(1s);
         } else {
-            close(sd);
             break;
         }
     }
@@ -394,12 +362,7 @@ int main(int argc, char * argv[]) {
 
     room = new Room(json);
 
-    send_existence_to_server(
-        room->get_central_server_ip().c_str(),
-        room->get_central_server_port()
-        // room->get_room_service_address().c_str(),
-        // room->get_room_service_client_port()
-    );
+    send_existence_to_server(room->get_central_server_ip(), room->get_central_server_port());
 
     cout << "Central server was warned of this room existence...\n" << endl;
 
