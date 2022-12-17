@@ -23,13 +23,9 @@
 using namespace std;
 
 #define QLEN 1
-#define MAX_REQUEST_DATA 16384
 #define MAX_INIT_JSON_SIZE 8192
 
 Room * room;
-
-int central_server_socket = -1;
-mutex central_server_socket_mutex;
 
 void print_msg_and_exit(const string message) {
     cout << message << endl;
@@ -46,30 +42,6 @@ void handle_critical_failure_ptr(void * ptr, const string message) {
     if (ptr == NULL) {
         print_msg_and_exit(message);
     }
-}
-
-void set_socket_addr(struct sockaddr_in * socket_addr, const char * addr, uint16_t port) {
-    int errcode;
-    struct sockaddr_in * temp_addr;
-    struct addrinfo hints, * result;
-
-    memset(&hints, 0, sizeof (hints));
-
-    hints.ai_family = PF_UNSPEC;
-    hints.ai_flags |= AI_CANONNAME;
-    hints.ai_socktype = SOCK_STREAM;
-
-    errcode = getaddrinfo(addr, NULL, &hints, &result);
-
-    if (errcode != 0) {
-        perror("getaddrinfo");
-        return;
-    }
-
-    socket_addr->sin_family = AF_INET;
-    temp_addr = (struct sockaddr_in *) result->ai_addr;
-    socket_addr->sin_addr = temp_addr->sin_addr;
-    socket_addr->sin_port = htons(port);
 }
 
 void log_receive_request(string request_data) {
@@ -91,76 +63,9 @@ void log_receive_request(string request_data) {
     );
 }
 
-size_t send_message_socket(int descriptor, const string message) {
-    return send(descriptor, message.c_str(), message.size(), 0);
-}
-
-size_t send_error_response(int descriptor, const string error_msg) {
-    ostringstream os;
-
-    os << "{\"error_msg\":\"" << error_msg << "\"}";
-
-    string response_str = os.str();
-
-    return send_message_socket(descriptor, response_str);
-}
-
-size_t receive_message_socket(int descriptor, void * buffer, size_t to_read_bytes) {
-    return recv(descriptor, buffer, to_read_bytes, 0);
-}
-
-size_t send_message_to_central_server(const string message) {
-    size_t send_ret;
-
-    lock_guard<mutex> lock(central_server_socket_mutex);
-
-    send_ret = send_message_socket(central_server_socket, message);
-
-    return send_ret;
-}
-
-size_t send_error_message_to_central_server(const string error_msg) {
-    size_t send_ret;
-
-    lock_guard<mutex> lock(central_server_socket_mutex);
-
-    send_ret = send_error_response(central_server_socket, error_msg);
-
-    return send_ret;
-}
-
-state receive_message_from_central_server(string & string_message) {
-    char * buffer;
-    size_t recv_ret;
-
-    buffer = (char *) malloc (MAX_REQUEST_DATA * sizeof(char));
-
-    if (buffer == NULL) return ALLOC_FAIL;
-
-    memset(buffer, 0x0, MAX_REQUEST_DATA * sizeof(char));
-
-    central_server_socket_mutex.lock();
-
-    recv_ret = receive_message_socket(central_server_socket, buffer, MAX_REQUEST_DATA);
-
-    central_server_socket_mutex.unlock();
-
-    if (recv_ret < 1) return FAIL_TO_READ_FROM_SOCKET;
-
-    string_message = buffer;
-
-    return SUCCESS;
-}
-
-void set_central_server_socket(int socket_fd) {
-    lock_guard<mutex> lock(central_server_socket_mutex);
-
-    central_server_socket = socket_fd;
-}
-
-void change_pin_value_action(bool value, DeviceData * data) {
+void change_pin_value_action(int server_sd, bool value, DeviceData * data) {
     if (data->pin_mode != DEVICE_OUTPUT) {
-        send_error_message_to_central_server("Não é possível escrever em pino de entrada");
+        Messager::send_error_message(server_sd, "Não é possível escrever em pino de entrada");
         return;
     }
 
@@ -170,18 +75,19 @@ void change_pin_value_action(bool value, DeviceData * data) {
     if (is_success(get_state) && current_value != value) {
         state ret = GpioInterface::write_pin(data->gpio, value);
 
+        // TODO: create a method to send a sucess response (does it have any keys? we can passa a cJSON * and check if it is NULL)
         if (is_success(ret))
-            send_message_to_central_server("{\"success\":true}");
+            Messager::send_message_socket(server_sd, "{\"success\":true}");
         else
-            send_error_message_to_central_server(value ? "Falha ao ativar" : "Falha ao desativar");
+            Messager::send_error_message(server_sd, value ? "Falha ao ativar" : "Falha ao desativar");
     } else {
-        send_error_message_to_central_server(value ? "Já está ativado" : "Já está desativado");
+        Messager::send_error_message(server_sd, value ? "Já está ativado" : "Já está desativado");
     }
 }
 
-void handle_requested_action(cJSON * request_data) {
+void handle_requested_action(int server_sd, cJSON * request_data) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
-        send_error_message_to_central_server("Ação desconhecida");
+        Messager::send_error_message(server_sd, "Ação desconhecida");
         return;
     }
 
@@ -189,27 +95,27 @@ void handle_requested_action(cJSON * request_data) {
     char * tag = cJSON_GetObjectItem(request_data, "tag")->valuestring;
 
     if (action == NULL || tag == NULL) {
-        send_error_message_to_central_server("Ação desconhecida");
+        Messager::send_error_message(server_sd, "Ação desconhecida");
         return;
     }
 
     unordered_map<string, DeviceData> devices_map = room->get_devices_map();
 
     if (devices_map.count(tag) == 0)
-        send_error_message_to_central_server("Tag desconhecida");
+        Messager::send_error_message(server_sd, "Tag desconhecida");
 
     DeviceData data = devices_map[tag];
 
     if (strcmp(action, "activate") == 0) {
-        change_pin_value_action(true, &data);
+        change_pin_value_action(server_sd, true, &data);
     } else if (strcmp(action, "deactivate") == 0) {
-        change_pin_value_action(false, &data);
+        change_pin_value_action(server_sd, false, &data);
     } else {
-        send_error_message_to_central_server("Ação desconhecida");
+        Messager::send_error_message(server_sd, "Ação desconhecida");
     }
 }
 
-void handle_request(string request_message) {
+void handle_request(int server_sd, string request_message) {
     cJSON * request_data;
 
     /* logging received requests in the console */
@@ -218,31 +124,33 @@ void handle_request(string request_message) {
     request_data = cJSON_Parse(request_message.c_str());
 
     if (request_data == NULL) {
-        send_error_message_to_central_server("Falha ao alocar memória");
+        Messager::send_error_message(server_sd, "Falha ao alocar memória");
+
         return;
     }
 
-    handle_requested_action(request_data);
+    handle_requested_action(server_sd, request_data);
 
     cJSON_Delete(request_data);
 }
 
-void answer_central_server(int accept_sd, struct sockaddr_in client_addr) {
+void answer_central_server(int server_sd, struct sockaddr_in client_addr) {
     while (true) {
         string message;
 
-        state recv_state = receive_message_from_central_server(message);
+        state recv_state = Messager::receive_message_from_socket(server_sd, message);
 
         if (is_success(recv_state)) {
-            handle_request(message);
+            handle_request(server_sd, message);
         } else {
-            send_error_message_to_central_server(
+            Messager::send_error_message(
+                server_sd,
                 recv_state == ALLOC_FAIL ? "Falha ao alocar memória" : "Ocorreu um erro ao processar a requisição"
             );
         }
     }
 
-    close(accept_sd);
+    close(server_sd);
 }
 
 void send_existence_to_server(string server_hostname, uint16_t server_port) {
@@ -302,16 +210,19 @@ cJSON * read_initialization_json(char * json_path) {
 }
 
 void send_sensor_update_message(string tag, bool value) {
-    string message;
     cJSON * json_msg = cJSON_CreateObject();
 
     cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("update_pin"));
     cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(tag.c_str()));
     cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value ? cJSON_True : cJSON_False));
 
-    message = cJSON_PrintUnformatted(json_msg);
-
-    send_message_to_central_server(message);
+    Messager::send_json_message(
+        room->get_central_server_ip(),
+        room->get_central_server_port(),
+        json_msg,
+        true,
+        true
+    );
 }
 
 void monitor_sensor(DeviceData device_data) {
@@ -352,6 +263,7 @@ void start_sensors_threads() {
 int main(int argc, char * argv[]) {
     int sd, bind_res, listen_res;
     struct sockaddr_in server_addr;
+    state set_socket_addr_state;
 
     if (argc < 2) {
         cout << "You must provide 1 argument: path to inicialization JSON file" << endl;
@@ -370,7 +282,13 @@ int main(int argc, char * argv[]) {
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
 
-    set_socket_addr(&server_addr, room->get_room_service_address().c_str(), room->get_room_service_port());
+    set_socket_addr_state = Messager::set_socket_addr(
+        &server_addr,
+        room->get_room_service_address().c_str(),
+        room->get_room_service_port()
+    );
+
+    handle_critical_failure_int(set_socket_addr_state, "Fail to get address info\n");
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -396,8 +314,6 @@ int main(int argc, char * argv[]) {
             cout << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "=> Accept fail" << endl;
             continue;
         }
-
-        set_central_server_socket(accept_sd);
 
         answer_central_server(accept_sd, client_addr);
     }
