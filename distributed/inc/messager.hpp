@@ -32,6 +32,8 @@ namespace Messager {
 
     state send_string_message(string hostname, uint16_t port, string message, bool close_socket);
 
+    void send_async_string_message(string hostname, uint16_t port, string message);
+
     state send_json_message(
         string hostname,
         uint16_t port,
@@ -39,6 +41,8 @@ namespace Messager {
         bool close_socket,
         bool delete_json
     );
+
+    void send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json);
 }
 
 #endif

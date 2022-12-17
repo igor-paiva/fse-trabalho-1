@@ -83,6 +83,10 @@ state Messager::send_string_message(string hostname, uint16_t port, string messa
     return SUCCESS;
 }
 
+void Messager::send_async_string_message(string hostname, uint16_t port, string message) {
+    thread (send_string_message, hostname, port, message, false).detach();
+}
+
 state Messager::send_json_message(
     string hostname,
     uint16_t port,
@@ -111,4 +115,14 @@ state Messager::send_json_message(
         return FAIL_TO_CLOSE_SOCKET;
 
     return SUCCESS;
+}
+
+void Messager::send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json = false) {
+    string message;
+
+    message = cJSON_PrintUnformatted(json);
+
+    if (delete_json) cJSON_Delete(json);
+
+    thread (send_string_message, hostname, port, message, false).detach();
 }
