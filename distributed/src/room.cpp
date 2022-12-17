@@ -115,26 +115,38 @@ void Room::set_device_value(string tag, bool new_value) {
 }
 
 string Room::get_name() {
+    lock_guard<mutex> lock(this->room_mutex);
+
     return this->name;
 };
 
 string Room::get_central_server_ip() {
+    lock_guard<mutex> lock(this->room_mutex);
+
     return this->central_server_ip;
 };
 
 uint16_t Room::get_central_server_port() {
+    lock_guard<mutex> lock(this->room_mutex);
+
     return this->central_server_port;
 };
 
 string Room::get_room_service_address() {
+    lock_guard<mutex> lock(this->room_mutex);
+
     return this->room_service_address;
 };
 
 uint16_t Room::get_room_service_port() {
+    lock_guard<mutex> lock(this->room_mutex);
+
     return this->room_service_port;
 };
 
 uint16_t Room::get_room_service_client_port() {
+    lock_guard<mutex> lock(this->room_mutex);
+
     return this->room_service_client_port;
 };
 
