@@ -37,8 +37,8 @@ vector<DeviceData> Room::get_devices_data(cJSON * json, string item) {
                 device_data.gpio = cJSON_GetObjectItem(json_item, "gpio")->valueint;
                 device_data.type = cJSON_GetObjectItem(json_item, "type")->valuestring;;
                 device_data.tag = cJSON_GetObjectItem(json_item, "tag")->valuestring;
-                device_data.pin_mode = item == "outputs" ? OUTPUT : INPUT;
-                device_data.value = false;
+                device_data.pin_mode = item == "outputs" ? DEVICE_OUTPUT : DEVICE_INPUT;
+                this->devices_values[device_data.tag] = false;
 
                 devices_data.push_back(device_data);
 
@@ -84,10 +84,34 @@ void Room::add_devices_to_json_array(cJSON * array, vector<DeviceData> devices) 
 
         cJSON_AddItemToObject(item, "tag", cJSON_CreateString(devices[i].tag.c_str()));
         cJSON_AddItemToObject(item, "type", cJSON_CreateString(devices[i].type.c_str()));
-        cJSON_AddItemToObject(item, "value", cJSON_CreateBool(devices[i].value ? cJSON_True : cJSON_False));
+        cJSON_AddItemToObject(item, "value", cJSON_CreateBool(this->devices_values[devices[i].tag] ? cJSON_True : cJSON_False));
 
         cJSON_AddItemToArray(array, item);
     }
+}
+
+unordered_map<string, bool> Room::get_devices_values() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->devices_values;
+}
+
+state Room::get_device_value(string tag, bool * value) {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    if (this->devices_values.count(tag) == 0)
+        return MAP_KEY_DONT_EXISTS;
+
+
+    *value = this->devices_values[tag];
+
+    return SUCCESS;
+}
+
+void Room::set_device_value(string tag, bool new_value) {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    this->devices_values[tag] = new_value;
 }
 
 string Room::get_name() {

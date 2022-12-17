@@ -158,12 +158,15 @@ void set_central_server_socket(int socket_fd) {
 }
 
 void change_pin_value_action(bool value, DeviceData * data) {
-    if (data->pin_mode != OUTPUT) {
+    if (data->pin_mode != DEVICE_OUTPUT) {
         send_error_message_to_central_server("Não é possível escrever em pino de entrada");
         return;
     }
 
-    if (data->value != value) {
+    bool current_value;
+    state get_state = room->get_device_value(data->tag, &current_value);
+
+    if (is_success(get_state) && current_value != value) {
         state ret = GpioInterface::write_pin(data->gpio, value);
 
         if (is_success(ret))
@@ -330,6 +333,54 @@ cJSON * read_initialization_json(char * json_path) {
     return json;
 }
 
+void send_sensor_update_message(string tag, bool value) {
+    string message;
+    cJSON * json_msg = cJSON_CreateObject();
+
+    cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("update_pin"));
+    cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(tag.c_str()));
+    cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value ? cJSON_True : cJSON_False));
+
+    message = cJSON_PrintUnformatted(json_msg);
+
+    send_message_to_central_server(message);
+}
+
+void monitor_sensor(DeviceData device_data) {
+    while (true) {
+        bool read_value;
+        bool current_value;
+
+        state read_state = GpioInterface::read_pin(device_data.gpio, &read_value);
+
+        state get_state = room->get_device_value(device_data.tag, &current_value);
+
+        cout << "Monitorando " << device_data.tag << ". Valor lido: " << read_value << ". Valor atual: " << current_value << endl;
+
+        if (is_success(read_state) && is_success(get_state) && current_value != read_value) {
+            room->set_device_value(device_data.tag, read_value);
+
+            thread (send_sensor_update_message, device_data.tag, read_value).detach();
+        }
+
+        cout << endl << endl;
+
+        this_thread::sleep_for(500ms);
+    }
+}
+
+void start_sensors_threads() {
+    vector<DeviceData> input_devices = room->get_input_devices();
+
+    for (DeviceData data : input_devices) {
+        if (data.type == "presenca" || data.type == "fumaca" || data.type == "janela" || data.type == "porta") {
+            cout << data.tag << endl;
+
+            thread (monitor_sensor, data).detach();
+        }
+    }
+}
+
 int main(int argc, char * argv[]) {
     int sd, bind_res, listen_res;
     struct sockaddr_in server_addr;
@@ -352,7 +403,7 @@ int main(int argc, char * argv[]) {
 
     cout << "Central server was warned of this room existence...\n" << endl;
 
-    // TODO: initialize sensors data thread
+    start_sensors_threads();
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
 
@@ -379,7 +430,7 @@ int main(int argc, char * argv[]) {
         accept_sd = accept(sd, (struct sockaddr *) &client_addr, &addr_len);
 
         if (accept_sd < 0) {
-            cout << inet_ntoa(client_addr.sin_addr) << ntohs(client_addr.sin_port) << "=> Accept fail" << endl;
+            cout << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "=> Accept fail" << endl;
             continue;
         }
 

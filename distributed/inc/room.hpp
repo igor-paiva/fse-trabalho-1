@@ -8,19 +8,19 @@
 #include <unordered_map>
 
 #include "cJSON.h"
+#include "types.hpp"
 
 using namespace std;
 
 typedef enum {
-    OUTPUT = 1,
-    INPUT,
+    DEVICE_OUTPUT = 1,
+    DEVICE_INPUT,
 } pin_mode_t;
 
 typedef struct {
     string type;
     string tag;
     int gpio;
-    bool value;
     pin_mode_t pin_mode;
 } DeviceData;
 
@@ -42,6 +42,9 @@ public:
     vector<DeviceData> get_output_devices();
     vector<DeviceData> get_input_devices();
     DeviceData get_temperature_device();
+    state get_device_value(string tag, bool * value);
+    unordered_map<string, bool> get_devices_values();
+    void set_device_value(string tag, bool new_value);
 
     unordered_map<string, DeviceData> get_devices_map();
 
@@ -58,6 +61,8 @@ private:
     vector<DeviceData> input_devices;
     DeviceData temperature_device;
     unordered_map<string, DeviceData> devices_map;
+
+    unordered_map<string, bool> devices_values;
 
     void initialize_data(cJSON * json);
     vector<DeviceData> get_devices_data(cJSON * json, string item);
