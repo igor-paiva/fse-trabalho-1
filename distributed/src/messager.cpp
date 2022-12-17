@@ -54,7 +54,7 @@ size_t Messager::send_message_socket(int descriptor, const string message) {
     return send(descriptor, message.c_str(), message.size(), 0);
 }
 
-size_t Messager::send_error_response(int descriptor, const string error_msg) {
+size_t Messager::send_error_message(int descriptor, const string error_msg) {
     ostringstream os;
 
     os << "{\"success\":false,\"error_msg\":\"" << error_msg << "\"}";
