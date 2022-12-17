@@ -2,6 +2,27 @@
 
 using namespace std;
 
+state try_send_json_message(
+    int socket_descriptor,
+    cJSON * json,
+    bool close_socket,
+    bool delete_json
+) {
+    size_t send_ret;
+    string message = cJSON_PrintUnformatted(json);
+
+    send_ret = Messager::send_message_socket(socket_descriptor, message);
+
+    if (send_ret < message.size()) return FAIL_TO_SEND_MESSAGE_SOCKET;
+
+    if (delete_json) cJSON_Delete(json);
+
+    if (close_socket && close(socket_descriptor) < 0)
+        return FAIL_TO_CLOSE_SOCKET;
+
+    return SUCCESS;
+}
+
 state Messager::connect_to_socket(string hostname, uint16_t port, int * socket_descriptor) {
     int descriptor;
     int connect_ret;
@@ -105,8 +126,6 @@ state Messager::send_json_message(
     bool close_socket,
     bool delete_json
 ) {
-    string message;
-    size_t send_ret;
     int socket_descriptor;
     state connection_state;
 
@@ -114,18 +133,37 @@ state Messager::send_json_message(
 
     if (is_error(connection_state)) return connection_state;
 
-    message = cJSON_PrintUnformatted(json);
+    return try_send_json_message(socket_descriptor, json, close_socket, delete_json);
+}
 
-    send_ret = send_message_socket(socket_descriptor, message);
+state Messager::send_json_response(
+    string hostname,
+    uint16_t port,
+    cJSON * json,
+    bool status,
+    string error_msg,
+    bool close_socket,
+    bool delete_json
+) {
+    int socket_descriptor;
+    state connection_state;
 
-    if (send_ret < message.size()) return FAIL_TO_SEND_MESSAGE_SOCKET;
+    connection_state = connect_to_socket(hostname, port, &socket_descriptor);
 
-    if (delete_json) cJSON_Delete(json);
+    if (is_error(connection_state)) return connection_state;
 
-    if (close_socket && close(socket_descriptor) < 0)
-        return FAIL_TO_CLOSE_SOCKET;
+    if (json == NULL) {
+        size_t sent_bytes = status ? send_success_message(socket_descriptor, NULL) : send_error_message(socket_descriptor, error_msg);
 
-    return SUCCESS;
+        return sent_bytes > 0 ? ((state) SUCCESS) : ((state) FAIL_TO_SEND_MESSAGE_SOCKET);
+    }
+
+    cJSON_AddItemToObject(json, "success", cJSON_CreateBool(status ? cJSON_True : cJSON_False));
+
+    if (!status)
+        cJSON_AddItemToObject(json, "error_msg", cJSON_CreateString(error_msg.c_str()));
+
+    return try_send_json_message(socket_descriptor, json, close_socket, delete_json);
 }
 
 void Messager::send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json) {
