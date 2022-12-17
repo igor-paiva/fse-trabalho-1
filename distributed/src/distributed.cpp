@@ -243,7 +243,7 @@ void monitor_sensor(DeviceData device_data) {
 
         cout << endl << endl;
 
-        this_thread::sleep_for(500ms);
+        this_thread::sleep_for(50ms);
     }
 }
 
