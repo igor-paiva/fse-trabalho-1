@@ -19,6 +19,8 @@
 #include "cJSON.h"
 #include "types.hpp"
 
+#define MAX_REQUEST_DATA 16384
+
 using namespace std;
 
 namespace Messager {
@@ -43,6 +45,8 @@ namespace Messager {
     );
 
     void send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json = false);
+
+    state receive_message_from_socket(int descriptor, string & string_message);
 }
 
 #endif

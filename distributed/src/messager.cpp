@@ -126,3 +126,25 @@ void Messager::send_async_json_message(string hostname, uint16_t port, cJSON * j
 
     thread (send_string_message, hostname, port, message, false).detach();
 }
+
+state Messager::receive_message_from_socket(int descriptor, string & string_message) {
+    size_t recv_ret;
+    char * buffer = NULL;
+
+    buffer = (char *) malloc (MAX_REQUEST_DATA * sizeof(char));
+
+    if (buffer == NULL) return ALLOC_FAIL;
+
+    memset(buffer, 0x0, MAX_REQUEST_DATA * sizeof(char));
+
+    recv_ret = recv(descriptor, buffer, MAX_REQUEST_DATA, 0);
+
+    if (recv_ret <= 0) {
+        free(buffer);
+        return FAIL_TO_READ_FROM_SOCKET;
+    }
+
+    string_message = buffer;
+
+    return SUCCESS;
+}
