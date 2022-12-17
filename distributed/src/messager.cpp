@@ -64,6 +64,17 @@ size_t Messager::send_error_message(int descriptor, const string error_msg) {
     return send_message_socket(descriptor, response_str);
 }
 
+size_t Messager::send_success_message(int descriptor, cJSON * json) {
+    if (json == NULL)
+        return send_message_socket(descriptor, "{\"success\":true}");
+
+    cJSON_AddItemToObject(json, "success", cJSON_CreateBool(cJSON_True));
+
+    string message = cJSON_PrintUnformatted(json);
+
+    return send_message_socket(descriptor, message);
+}
+
 state Messager::send_string_message(string hostname, uint16_t port, string message, bool close_socket) {
     size_t send_ret;
     int socket_descriptor;

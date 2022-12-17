@@ -32,6 +32,8 @@ namespace Messager {
 
     size_t send_error_message(int descriptor, const string error_msg);
 
+    size_t send_success_message(int descriptor, cJSON * json);
+
     state send_string_message(string hostname, uint16_t port, string message, bool close_socket = true);
 
     void send_async_string_message(string hostname, uint16_t port, string message);
