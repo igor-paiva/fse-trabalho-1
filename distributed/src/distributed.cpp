@@ -215,11 +215,10 @@ void send_sensor_update_message(string tag, bool value) {
     cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(tag.c_str()));
     cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value ? cJSON_True : cJSON_False));
 
-    Messager::send_json_message(
+    Messager::send_async_json_message(
         room->get_central_server_ip(),
         room->get_central_server_port(),
         json_msg,
-        true,
         true
     );
 }
@@ -238,7 +237,7 @@ void monitor_sensor(DeviceData device_data) {
         if (is_success(read_state) && is_success(get_state) && current_value != read_value) {
             room->set_device_value(device_data.tag, read_value);
 
-            thread (send_sensor_update_message, device_data.tag, read_value).detach();
+            send_sensor_update_message(device_data.tag, read_value);
         }
 
         cout << endl << endl;
