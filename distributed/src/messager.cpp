@@ -64,7 +64,7 @@ size_t Messager::send_error_response(int descriptor, const string error_msg) {
     return send_message_socket(descriptor, response_str);
 }
 
-state Messager::send_string_message(string hostname, uint16_t port, string message, bool close_socket = true) {
+state Messager::send_string_message(string hostname, uint16_t port, string message, bool close_socket) {
     size_t send_ret;
     int socket_descriptor;
     state connection_state;
@@ -91,8 +91,8 @@ state Messager::send_json_message(
     string hostname,
     uint16_t port,
     cJSON * json,
-    bool close_socket = true,
-    bool delete_json = false
+    bool close_socket,
+    bool delete_json
 ) {
     string message;
     size_t send_ret;
@@ -117,7 +117,7 @@ state Messager::send_json_message(
     return SUCCESS;
 }
 
-void Messager::send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json = false) {
+void Messager::send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json) {
     string message;
 
     message = cJSON_PrintUnformatted(json);

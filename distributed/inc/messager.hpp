@@ -30,7 +30,7 @@ namespace Messager {
 
     size_t send_error_response(int descriptor, const string error_msg);
 
-    state send_string_message(string hostname, uint16_t port, string message, bool close_socket);
+    state send_string_message(string hostname, uint16_t port, string message, bool close_socket = true);
 
     void send_async_string_message(string hostname, uint16_t port, string message);
 
@@ -38,11 +38,11 @@ namespace Messager {
         string hostname,
         uint16_t port,
         cJSON * json,
-        bool close_socket,
-        bool delete_json
+        bool close_socket = true,
+        bool delete_json = false
     );
 
-    void send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json);
+    void send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json = false);
 }
 
 #endif
