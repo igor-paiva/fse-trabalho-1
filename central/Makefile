@@ -17,7 +17,7 @@ EXE = bin/prog
 ADDRESS := localhost
 
 # Port to run the server
-PORT := 10200
+PORT := 10310
 
 all: clean $(EXE)
 
