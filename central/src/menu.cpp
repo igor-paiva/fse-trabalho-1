@@ -77,10 +77,6 @@ bool trigger_main_menu_action(int option) {
     return true;
 }
 
-void Menu::clear_screen() {
-    system(CLEAR);
-}
-
 void print_room_info_menu_options() {
     lock_guard<mutex> lock(connected_rooms_mutex);
     int i = 1;
@@ -92,7 +88,7 @@ void print_room_info_menu_options() {
     }
 }
 
-void Menu::room_info_menu_loop() {
+void get_room_name_loop(void (*callback)(Room *)) {
     string option = "";
     Room * room = NULL;
 
@@ -113,12 +109,20 @@ void Menu::room_info_menu_loop() {
         connected_rooms_mutex.unlock();
 
         if (room) {
-            print_room_info(room);
+            callback(room);
             break;
         } else {
-            clear_screen();
+            Menu::clear_screen();
         }
     }
+}
+
+void Menu::clear_screen() {
+    system(CLEAR);
+}
+
+void Menu::room_info_menu_loop() {
+    get_room_name_loop(print_room_info);
 }
 
 void Menu::main_menu_loop() {
