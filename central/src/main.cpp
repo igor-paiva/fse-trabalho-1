@@ -123,36 +123,18 @@ void answer_distributed_server(int server_sd, struct sockaddr_in client_addr) {
     close(server_sd);
 }
 
-void init_server(char * hostname, uint16_t port) {
-    int sd, bind_res, listen_res;
-    struct sockaddr_in server_addr;
-
-    memset((char *) &server_addr, 0, sizeof(server_addr));
-
-    Messager::set_socket_addr(&server_addr, hostname, port);
-
-    sd = socket(AF_INET, SOCK_STREAM, 0);
-
-    handle_critical_failure_int(sd, "Fail to create the socket\n");
-
-    bind_res = bind(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
-
-    handle_critical_failure_int(bind_res, "Bind fail\n");
-
-    listen_res = listen(sd, QLEN);
-
-    handle_critical_failure_int(listen_res, "Fail to listen on socket\n");
-
+void start_server(int server_sd) {
     while (true) {
         int accept_sd;
         socklen_t addr_len;
         struct sockaddr_in client_addr;
 
         addr_len = sizeof(client_addr);
-        accept_sd = accept(sd, (struct sockaddr *) &client_addr, &addr_len);
+        accept_sd = accept(server_sd, (struct sockaddr *) &client_addr, &addr_len);
 
         if (accept_sd < 0) {
-            cout << inet_ntoa(client_addr.sin_addr) << ntohs(client_addr.sin_port) << "=> Accept fail" << endl;
+            cout << "<< Server thread >>" << endl;
+            cout << inet_ntoa(client_addr.sin_addr) << ntohs(client_addr.sin_port) << "=> Accept fail: " << strerror(errno) << endl;
             continue;
         }
 
@@ -161,15 +143,34 @@ void init_server(char * hostname, uint16_t port) {
 }
 
 int main(int argc, char * argv[]) {
+    struct sockaddr_in server_addr;
+    int server_sd, bind_ret, listen_ret;
+    state set_socket_addr_state;
+
     if (argc < 3) {
         cout << "You must provide 2 arguments: IP/HOSTNAME and PORT to run the server" << endl;
         exit(0);
     }
 
-    thread t1 (init_server, argv[1], (uint16_t) atoi(argv[2]));
-    // .detach();
+    memset((char *) &server_addr, 0, sizeof(server_addr));
 
-    t1.join();
+    set_socket_addr_state = Messager::set_socket_addr(&server_addr, argv[1], (uint16_t) atoi(argv[2]));
+
+    handle_critical_failure_int(set_socket_addr_state, "Fail to get address info");
+
+    server_sd = socket(AF_INET, SOCK_STREAM, 0);
+
+    handle_critical_failure_int(server_sd, "Fail to create the socket");
+
+    bind_ret = bind(server_sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+
+    handle_critical_failure_int(bind_ret, "Bind fail");
+
+    listen_ret = listen(server_sd, QLEN);
+
+    handle_critical_failure_int(listen_ret, "Fail to listen on socket");
+
+    thread (start_server, server_sd).detach();
 
     return 0;
 }
