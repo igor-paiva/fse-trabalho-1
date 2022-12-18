@@ -20,6 +20,7 @@
 #include "types.hpp"
 #include "messager.hpp"
 #include "server.hpp"
+#include "menu.hpp"
 
 #define QLEN 10
 
@@ -69,7 +70,7 @@ int main(int argc, char * argv[]) {
 
     thread (Server::start_server, server_sd).detach();
 
-    pause();
+    Menu::main_menu_loop();
 
     return 0;
 }
