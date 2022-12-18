@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "cJSON.h"
+#include "types.hpp"
 
 using namespace std;
 
@@ -27,7 +28,21 @@ class Room {
 public:
     Room(cJSON * json);
 
+    unordered_map<string, bool> get_devices_values();
+    state get_device_value(string tag, bool * value);
+    void set_device_value(string tag, bool new_value);
+    string get_name();
+    string get_room_service_address();
+    uint16_t get_room_service_port();
+
+    vector<DeviceData> get_output_devices();
+    vector<DeviceData> get_input_devices();
+
+    string to_string();
+
 private:
+    mutex room_mutex;
+
     string name;
     string central_server_ip;
     uint16_t central_server_port;
@@ -36,7 +51,7 @@ private:
     uint16_t room_service_client_port;
     vector<DeviceData> output_devices;
     vector<DeviceData> input_devices;
-    DeviceData temperature_device;
+    // DeviceData temperature_device;
 
     unordered_map<string, bool> devices_values;
 

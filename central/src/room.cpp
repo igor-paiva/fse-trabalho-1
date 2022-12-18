@@ -5,6 +5,8 @@ Room::Room(cJSON * json) {
 }
 
 void Room::initialize_data(cJSON * json) {
+    lock_guard<mutex> lock(this->room_mutex);
+
     this->name = cJSON_GetObjectItem(json, "name")->valuestring;
     // TODO: the IP sent is the one on the init file, so we must use de public IP (use sockaddr_in)
     this->room_service_address = cJSON_GetObjectItem(json, "ip_address")->valuestring;
@@ -41,3 +43,73 @@ vector<DeviceData> Room::get_devices_data(cJSON * json, string item) {
 
     return devices_data;
 }
+
+string Room::to_string() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    ostringstream os;
+
+    os << this->name << endl;
+
+    for (auto device_data : this->output_devices) {
+        os << "\n\t" << device_data.tag << endl;
+        os << "\t\t" << "Tipo: " << device_data.type << endl;
+        os << "\t\t" << "Estado: " << (this->devices_values[device_data.tag] ? "Ligado" : "Desligado") << endl;
+    }
+
+    return os.str();
+}
+
+unordered_map<string, bool> Room::get_devices_values() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->devices_values;
+}
+
+state Room::get_device_value(string tag, bool * value) {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    if (this->devices_values.count(tag) == 0)
+        return MAP_KEY_DONT_EXISTS;
+
+
+    *value = this->devices_values[tag];
+
+    return SUCCESS;
+}
+
+void Room::set_device_value(string tag, bool new_value) {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    this->devices_values[tag] = new_value;
+}
+
+string Room::get_name() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->name;
+};
+
+string Room::get_room_service_address() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->room_service_address;
+};
+
+uint16_t Room::get_room_service_port() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->room_service_port;
+};
+
+vector<DeviceData> Room::get_output_devices() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->output_devices;
+};
+
+vector<DeviceData> Room::get_input_devices() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->input_devices;
+};
