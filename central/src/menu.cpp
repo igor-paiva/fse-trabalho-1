@@ -86,6 +86,8 @@ void print_room_info_menu_options() {
 
         i++;
     }
+
+    cout << i << ") Voltar" << endl;
 }
 
 void get_room_name_loop(void (*callback)(Room *)) {
@@ -99,6 +101,11 @@ void get_room_name_loop(void (*callback)(Room *)) {
         print_room_info_menu_options();
 
         option = read_menu_string_option("Digite o nome da sala");
+
+        if (to_upper_case(option) == "VOLTAR" || option == "2") {
+            Menu::clear_screen();
+            break;
+        }
 
         connected_rooms_mutex.lock();
 
