@@ -43,4 +43,8 @@ bool is_error(state value);
 
 bool is_success(state value);
 
+string to_lower_case(string str);
+
+string to_upper_case(string str);
+
 #endif
