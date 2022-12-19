@@ -5,19 +5,72 @@ using namespace std;
 extern unordered_map<string, Room *> connected_rooms;
 extern mutex connected_rooms_mutex;
 
+void handle_update_room_data(int server_sd, cJSON * request_data) {
+    if (!cJSON_HasObjectItem(request_data, "room_data")) {
+        Messager::send_error_message(server_sd, "Chave 'room_data' é obrigatória");
+        return;
+    }
+
+    cJSON * room_data = cJSON_GetObjectItem(request_data, "room_data");
+
+    string room_name = cJSON_GetObjectItem(room_data, "name")->valuestring;
+
+    connected_rooms_mutex.lock();
+
+    if (connected_rooms.count(room_name) == 0) {
+        connected_rooms[room_name] = new Room(room_data);
+    } else {
+        Room * stored_room = connected_rooms[room_name];
+
+        delete stored_room;
+
+        connected_rooms[room_name] = new Room(room_data);
+    }
+
+    connected_rooms_mutex.unlock();
+
+    // TODO: remove print
+    char * request_data_str = cJSON_Print(request_data);
+
+    cout << "Ação de atualizar os dado da sala\n\t" << request_data_str << endl;
+
+    free(request_data_str);
+}
+
+void handle_update_device_value(int server_sd, cJSON * request_data) {
+    bool has_tag = cJSON_HasObjectItem(request_data, "tag");
+    bool has_room_name = cJSON_HasObjectItem(request_data, "room_name");
+    bool has_value = cJSON_HasObjectItem(request_data, "value");
+
+    if (!has_tag || !has_value || !has_room_name) return;
+
+    bool value = cJSON_IsTrue(cJSON_GetObjectItem(request_data, "value"));
+    string device_tag = cJSON_GetObjectItem(request_data, "tag")->valuestring;
+    string room_name = cJSON_GetObjectItem(request_data, "room_name")->valuestring;
+
+    connected_rooms_mutex.lock();
+
+    if (connected_rooms.count(room_name) == 1) {
+        connected_rooms[room_name]->set_device_value(device_tag, value);
+    }
+
+    connected_rooms_mutex.unlock();
+
+    // TODO: remove print
+    char * request_data_str = cJSON_Print(request_data);
+
+    cout << "Ação de atualizar dispositivo\n\t" << request_data_str << endl;
+
+    free(request_data_str);
+}
+
 void handle_requested_action(int server_sd, cJSON * request_data) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
         Messager::send_error_message(server_sd, "Ação desconhecida");
         return;
     }
 
-    if (!cJSON_HasObjectItem(request_data, "room_data")) {
-        Messager::send_error_message(server_sd, "Chave 'room_data' é obrigatória");
-        return;
-    }
-
     char * action = cJSON_GetObjectItem(request_data, "action")->valuestring;
-    cJSON * room_data = cJSON_GetObjectItem(request_data, "room_data");
 
     if (action == NULL) {
         Messager::send_error_message(server_sd, "Ação desconhecida");
@@ -25,24 +78,9 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
     }
 
     if (strcmp(action, "update_room_data") == 0) {
-        string room_name = cJSON_GetObjectItem(room_data, "name")->valuestring;
-
-        if (connected_rooms.count(room_name) == 0) {
-            connected_rooms[room_name] = new Room(room_data);
-        } else {
-            Room * stored_room = connected_rooms[room_name];
-
-            delete stored_room;
-
-            connected_rooms[room_name] = new Room(room_data);
-        }
-
-        // TODO: remove print
-        char * request_data_str = cJSON_Print(request_data);
-
-        cout << "Ação de atualizar os dado da sala\n\t" << request_data_str << endl;
-
-        free(request_data_str);
+        handle_update_room_data(server_sd, request_data);
+    } else if (strcmp(action, "update_device_value") == 0) {
+        handle_update_device_value(server_sd, request_data);
     } else {
         Messager::send_error_message(server_sd, "Ação desconhecida");
     }
