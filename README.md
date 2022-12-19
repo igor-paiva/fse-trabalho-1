@@ -1,13 +1,3 @@
 # Trabalho 1 FSE - 2022.2
 
-## Como executar
-
-Será necessário ter instalado o Make e o GCC.
-
-Para executar:
-
-```
-make
-
-make run
-```
+Veja a documentação de cada serviço (central e distribuído) no arquivo README.md em suas respectivas pastas.
