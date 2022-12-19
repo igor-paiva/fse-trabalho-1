@@ -84,6 +84,27 @@ void change_pin_value_action(int server_sd, bool value, DeviceData * data) {
     }
 }
 
+void change_all_output_to_value(int server_sd, bool value) {
+    vector<string> error_devices;
+
+    for (auto device_data : room->get_output_devices()) {
+        state ret = GpioInterface::write_pin(device_data.gpio, value);
+
+        if (is_error(ret))
+            error_devices.push_back(device_data.tag);
+    }
+
+    if (error_devices.size()) {
+        Messager::send_success_message(server_sd, NULL);
+    } else {
+        string error_msg = "Falha ao ativar o(s) dispositivo(s): ";
+
+        for (auto tag : error_devices) error_msg += tag;
+
+        Messager::send_error_message(server_sd, error_msg);
+    }
+}
+
 void handle_requested_action(int server_sd, cJSON * request_data) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
         Messager::send_error_message(server_sd, "Ação desconhecida");
@@ -109,6 +130,10 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
         change_pin_value_action(server_sd, true, &data);
     } else if (strcmp(action, "deactivate") == 0) {
         change_pin_value_action(server_sd, false, &data);
+    } else if (strcmp(action, "activate_all") == 0) {
+        change_all_output_to_value(server_sd, true);
+    } else if (strcmp(action, "deactivate_all") == 0) {
+        change_all_output_to_value(server_sd, false);
     } else {
         Messager::send_error_message(server_sd, "Ação desconhecida");
     }
@@ -134,19 +159,17 @@ void handle_request(int server_sd, string request_message) {
 }
 
 void answer_central_server(int server_sd, struct sockaddr_in client_addr) {
-    while (true) {
-        string message;
+    string message;
 
-        state recv_state = Messager::receive_message_from_socket(server_sd, message);
+    state recv_state = Messager::receive_message_from_socket(server_sd, message);
 
-        if (is_success(recv_state)) {
-            handle_request(server_sd, message);
-        } else {
-            Messager::send_error_message(
-                server_sd,
-                recv_state == ALLOC_FAIL ? "Falha ao alocar memória" : "Ocorreu um erro ao processar a requisição"
-            );
-        }
+    if (is_success(recv_state)) {
+        handle_request(server_sd, message);
+    } else {
+        Messager::send_error_message(
+            server_sd,
+            recv_state == ALLOC_FAIL ? "Falha ao alocar memória" : "Ocorreu um erro ao processar a requisição"
+        );
     }
 
     close(server_sd);
@@ -154,12 +177,22 @@ void answer_central_server(int server_sd, struct sockaddr_in client_addr) {
 
 void send_existence_to_server(string server_hostname, uint16_t server_port) {
     while (true) {
+        string message;
+        cJSON * json = cJSON_CreateObject();
+
         cout << "Trying to warn central server of this room existence...\n" << endl;
+
+        cJSON_AddItemToObject(json, "action", cJSON_CreateString("update_room_data"));
+        cJSON_AddItemReferenceToObject(json, "room_data", room->to_json());
+
+        message = cJSON_PrintUnformatted(json);
+
+        cJSON_Delete(json);
 
         state send_state = Messager::send_string_message(
             server_hostname,
             server_port,
-            room->to_json_str()
+            message
         );
 
         if (is_error(send_state)) {
@@ -289,19 +322,19 @@ int main(int argc, char * argv[]) {
         room->get_room_service_port()
     );
 
-    handle_critical_failure_int(set_socket_addr_state, "Fail to get address info\n");
+    handle_critical_failure_int(set_socket_addr_state, "Fail to get address info");
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
 
-    handle_critical_failure_int(sd, "Fail to create the socket\n");
+    handle_critical_failure_int(sd, "Fail to create the socket");
 
     bind_res = bind(sd, (struct sockaddr *) &server_addr, sizeof(server_addr));
 
-    handle_critical_failure_int(bind_res, "Bind fail\n");
+    handle_critical_failure_int(bind_res, "Bind fail");
 
     listen_res = listen(sd, QLEN);
 
-    handle_critical_failure_int(listen_res, "Fail to listen on socket\n");
+    handle_critical_failure_int(listen_res, "Fail to listen on socket");
 
     while (true) {
         int accept_sd;
@@ -311,12 +344,15 @@ int main(int argc, char * argv[]) {
         addr_len = sizeof(client_addr);
         accept_sd = accept(sd, (struct sockaddr *) &client_addr, &addr_len);
 
+        // TODO: return error and close socket if it is not from the registered central server IP and port
+
         if (accept_sd < 0) {
             cout << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "=> Accept fail" << endl;
             continue;
         }
 
-        answer_central_server(accept_sd, client_addr);
+        // Is this really necessary? Does the central server send messages to distributed simultaneously?
+        thread (answer_central_server, accept_sd, client_addr).detach();
     }
 
     delete room;
