@@ -5,6 +5,7 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 #include <string>
 #include <iostream>
 #include <thread>
@@ -22,8 +23,9 @@
 
 using namespace std;
 
-#define QLEN 1
+#define QLEN 10
 #define MAX_INIT_JSON_SIZE 8192
+#define SENSOR_UPDATE_MAX_RETRIES 5
 
 Room * room;
 
@@ -293,16 +295,24 @@ cJSON * read_initialization_json(char * json_path) {
 void send_sensor_update_message(string tag, bool value) {
     cJSON * json_msg = cJSON_CreateObject();
 
-    cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("update_pin"));
+    cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("update_device_value"));
+    cJSON_AddItemToObject(json_msg, "room_name", cJSON_CreateString(room->get_name().c_str()));
     cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(tag.c_str()));
     cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value ? cJSON_True : cJSON_False));
 
-    Messager::send_async_json_message(
-        room->get_central_server_ip(),
-        room->get_central_server_port(),
-        json_msg,
-        true
-    );
+    for (int i = 0; i < SENSOR_UPDATE_MAX_RETRIES; i++) {
+        state send_state = Messager::send_json_message(
+            room->get_central_server_ip(),
+            room->get_central_server_port(),
+            json_msg,
+            true,
+            false
+        );
+
+        if (is_success(send_state)) break;
+    }
+
+    cJSON_Delete(json_msg);
 }
 
 void monitor_sensor(DeviceData device_data) {
@@ -320,7 +330,7 @@ void monitor_sensor(DeviceData device_data) {
         if (is_success(read_state) && is_success(get_state) && current_value != read_value) {
             room->set_device_value(device_data.tag, read_value);
 
-            send_sensor_update_message(device_data.tag, read_value);
+            thread (send_sensor_update_message, device_data.tag, read_value).detach();
         }
 
         // TODO: remove this
@@ -361,6 +371,7 @@ int main(int argc, char * argv[]) {
 
     cout << "Central server was warned of this room existence...\n" << endl;
 
+    // TODO: uncomment this
     start_sensors_threads();
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
