@@ -53,7 +53,7 @@ namespace Messager {
         bool status,
         string error_msg = "",
         bool close_socket = true,
-        bool delete_json = false
+        bool delete_json = true
     );
 
     state send_async_json_message(string hostname, uint16_t port, cJSON * json, bool delete_json = false);
