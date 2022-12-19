@@ -12,6 +12,7 @@
 
 #include "types.hpp"
 #include "room.hpp"
+#include "menu_actions.hpp"
 
 using namespace std;
 
@@ -21,6 +22,8 @@ namespace Menu {
     void main_menu_loop();
 
     void room_info_menu_loop();
+
+    void actions_menu_loop();
 }
 
 #endif

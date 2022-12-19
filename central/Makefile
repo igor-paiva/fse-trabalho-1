@@ -19,7 +19,7 @@ ADDRESS := localhost
 # Port to run the server
 PORT := 10310
 
-all: clean $(EXE)
+all: $(EXE)
 
 $(EXE): $(OBJ)
 	$(CPPC) $(OBJDIR)/*.o -o $@ $(LDFLAGS)
@@ -34,6 +34,8 @@ $(OBJDIR)/%.o : $(SRCDIR)/%.c
 
 run:
 	@./$(EXE) $(ADDRESS) $(PORT)
+
+.PHONY: clean
 
 clean:
 	-rm -f $(OBJDIR)/*.o $(EXE)
