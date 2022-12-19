@@ -85,26 +85,68 @@ void change_pin_value_action(int server_sd, bool value, DeviceData * data) {
 }
 
 void change_all_output_to_value(int server_sd, bool value) {
+    cJSON * success_res_json;
     vector<string> error_devices;
+
+    success_res_json = cJSON_CreateObject();
+    cJSON * array = cJSON_AddArrayToObject(success_res_json, "successful_devices");
 
     for (auto device_data : room->get_output_devices()) {
         if (device_data.type != "alarme") {
             state ret = GpioInterface::write_pin(device_data.gpio, value);
 
-            if (is_error(ret))
+            if (is_error(ret)) {
                 error_devices.push_back(device_data.tag);
+            } else {
+                cJSON_AddItemToArray(array, cJSON_CreateString(device_data.tag.c_str()));
+            }
         }
     }
 
-    if (error_devices.size()) {
-        Messager::send_success_message(server_sd, NULL);
+    if (error_devices.size() == 0) {
+        Messager::send_success_message(server_sd, success_res_json);
     } else {
+        int i = 1;
         string error_msg = "Falha ao ativar o(s) dispositivo(s): ";
 
-        for (auto tag : error_devices) error_msg += tag;
+        for (auto tag : error_devices) {
+            if (i == 1 || i == (int) error_devices.size()) {
+                error_msg += tag;
+            } else {
+                error_msg = error_msg + ", " + tag;
+            }
+
+            i++;
+        }
 
         Messager::send_error_message(server_sd, error_msg);
     }
+}
+
+DeviceData * get_device_data_by_request_tag(int server_sd, cJSON * request_data) {
+    char * tag;
+    unordered_map<string, DeviceData> devices_map;
+
+    if (!cJSON_HasObjectItem(request_data, "tag")) {
+        Messager::send_error_message(server_sd, "Tag não informada");
+        return NULL;
+    }
+
+    tag = cJSON_GetObjectItem(request_data, "tag")->valuestring;
+
+    if (tag == NULL) {
+        Messager::send_error_message(server_sd, "Tag não informada");
+        return NULL;
+    }
+
+    devices_map = room->get_devices_map();
+
+    if (devices_map.count(tag) == 0) {
+        Messager::send_error_message(server_sd, "Tag desconhecida");
+        return NULL;
+    }
+
+    return &devices_map[tag];
 }
 
 void handle_requested_action(int server_sd, cJSON * request_data) {
@@ -113,25 +155,30 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
         return;
     }
 
+    unordered_map<string, DeviceData> devices_map;
     char * action = cJSON_GetObjectItem(request_data, "action")->valuestring;
-    char * tag = cJSON_GetObjectItem(request_data, "tag")->valuestring;
 
-    if (action == NULL || tag == NULL) {
+    if (action == NULL) {
         Messager::send_error_message(server_sd, "Ação desconhecida");
         return;
     }
 
-    unordered_map<string, DeviceData> devices_map = room->get_devices_map();
+    devices_map = room->get_devices_map();
 
-    if (devices_map.count(tag) == 0)
-        Messager::send_error_message(server_sd, "Tag desconhecida");
-
-    DeviceData data = devices_map[tag];
+    action = cJSON_GetObjectItem(request_data, "action")->valuestring;
 
     if (strcmp(action, "activate") == 0) {
-        change_pin_value_action(server_sd, true, &data);
+        change_pin_value_action(
+            server_sd,
+            true,
+            get_device_data_by_request_tag(server_sd, request_data)
+        );
     } else if (strcmp(action, "deactivate") == 0) {
-        change_pin_value_action(server_sd, false, &data);
+        change_pin_value_action(
+            server_sd,
+            false,
+            get_device_data_by_request_tag(server_sd, request_data)
+        );
     } else if (strcmp(action, "activate_all") == 0) {
         change_all_output_to_value(server_sd, true);
     } else if (strcmp(action, "deactivate_all") == 0) {
