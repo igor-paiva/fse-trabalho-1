@@ -145,6 +145,41 @@ state Messager::send_json_message(
     return try_send_json_message(socket_descriptor, json, close_socket, delete_json);
 }
 
+state Messager::send_json_message_wait_response(
+    string hostname,
+    uint16_t port,
+    cJSON * json,
+    cJSON ** response_json,
+    bool close_socket,
+    bool delete_json
+) {
+    int socket_descriptor;
+    state connection_state, send_recv_state;
+    string response_msg;
+
+    connection_state = connect_to_socket(hostname, port, &socket_descriptor);
+
+    if (is_error(connection_state)) return connection_state;
+
+    send_recv_state = try_send_json_message(socket_descriptor, json, false, delete_json);
+
+    if (is_error(send_recv_state)) return send_recv_state;
+
+    send_recv_state = receive_message_from_socket(socket_descriptor, response_msg);
+
+    cout << "after receive message:\n\t" << response_msg << endl;
+
+    if (is_error(send_recv_state)) return send_recv_state;
+
+    if (close_socket) close(socket_descriptor);
+
+    *response_json = cJSON_Parse(response_msg.c_str());
+
+    if (*response_json == NULL) return JSON_PARSE_FAIL;
+
+    return SUCCESS;
+}
+
 state Messager::send_json_response(
     string hostname,
     uint16_t port,
@@ -213,4 +248,20 @@ state Messager::receive_message_from_socket(int descriptor, string & string_mess
     string_message = buffer;
 
     return SUCCESS;
+}
+
+bool Messager::get_response_success_value(cJSON * json) {
+    if (cJSON_HasObjectItem(json, "success")) {
+        return cJSON_IsTrue(cJSON_GetObjectItem(json, "success"));
+    }
+
+    return false;
+}
+
+string Messager::get_response_error_msg(cJSON * json) {
+    if (cJSON_HasObjectItem(json, "error_msg")) {
+        return cJSON_GetObjectItem(json, "error_msg")->valuestring;
+    }
+
+    return "";
 }

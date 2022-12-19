@@ -110,9 +110,11 @@ int print_room_tags_menu_options(string room_name) {
     cout << "\nDispositivos conectados:\n" << endl;
 
     for (auto data: connected_rooms[room_name]->get_output_devices()) {
-        cout << i << ") " << data.tag << endl;
+        if (data.type != "alarme") {
+            cout << i << ") " << data.tag << endl;
 
-        i++;
+            i++;
+        }
     }
 
     cout << i << ") Voltar" << endl;
@@ -120,7 +122,7 @@ int print_room_tags_menu_options(string room_name) {
     return i;
 }
 
-state get_room_tag_loop(string room_name, state (*callback)(string, string)) {
+state get_room_tag_loop(string room_name, state (*callback)(string, string, string&), string & error_msg) {
     int option = -1;
     string tag = "";
 
@@ -148,7 +150,7 @@ state get_room_tag_loop(string room_name, state (*callback)(string, string)) {
         connected_rooms_mutex.unlock();
 
         if (tag.length() > 0) {
-            return callback(room_name, tag);
+            return callback(room_name, tag, error_msg);
         } else {
             Menu::clear_screen();
         }
@@ -192,12 +194,18 @@ void get_room_name_loop(void (*callback)(Room *)) {
 }
 
 void call_action_to_tag(Room * room) {
-    state send_state = get_room_tag_loop(room->get_name(), MenuActions::send_set_output_device_message);
+    string error_msg;
+
+    state send_state = get_room_tag_loop(
+        room->get_name(),
+        MenuActions::send_set_output_device_message,
+        error_msg
+    );
 
     if (is_success(send_state)) {
         cout << "\nDispositivo acionado com sucesso" << endl;
     } else {
-        cout << "Falha ao acionar o dispositivo " << ". Tente novamente" << endl;
+        cout << "Falha ao acionar o dispositivo: " << error_msg << endl;
     }
 }
 

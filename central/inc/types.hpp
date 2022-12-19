@@ -20,7 +20,8 @@ typedef enum {
 
 /* those will always be negative */
 typedef enum {
-    ALLOC_FAIL = INT_MIN,
+    ERROR = INT_MIN,
+    ALLOC_FAIL,
     UNABLE_OPEN_FILE,
     UNABLE_READ_FILE,
     UNABLE_WRITE_FILE,
@@ -28,6 +29,7 @@ typedef enum {
     JSON_ITEM_ADD_FAIL,
     JSON_ITEM_PRINT_FAIL,
     JSON_ITEM_CREATE_FAIL,
+    JSON_PARSE_FAIL,
     UNEXPECTED_JSON_KEY,
     FAIL_TO_READ_FROM_SOCKET,
     FAIL_TO_SEND_MESSAGE_SOCKET,
