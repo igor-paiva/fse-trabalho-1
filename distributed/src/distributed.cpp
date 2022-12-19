@@ -88,10 +88,12 @@ void change_all_output_to_value(int server_sd, bool value) {
     vector<string> error_devices;
 
     for (auto device_data : room->get_output_devices()) {
-        state ret = GpioInterface::write_pin(device_data.gpio, value);
+        if (device_data.type != "alarme") {
+            state ret = GpioInterface::write_pin(device_data.gpio, value);
 
-        if (is_error(ret))
-            error_devices.push_back(device_data.tag);
+            if (is_error(ret))
+                error_devices.push_back(device_data.tag);
+        }
     }
 
     if (error_devices.size()) {
