@@ -58,7 +58,9 @@ string read_menu_string_option(string message = "Digite uma opção") {
 
 void print_actions_menu_options() {
     cout << "\n\n1) Acionar equipamentos de saída" << endl;
-    cout << "2) Voltar" << endl;
+    cout << "2) Acionar todos os equipamentos de saída" << endl;
+    cout << "3) Desligar todos os equipamentos de saída" << endl;
+    cout << "4) Voltar" << endl;
 }
 
 bool trigger_main_menu_action(int option) {
@@ -209,6 +211,22 @@ void call_action_to_tag(Room * room) {
     }
 }
 
+void call_action_to_room(Room * room, bool value) {
+    string error_msg;
+
+    state send_state = MenuActions::send_set_all_output_device_message(
+        room->get_name(),
+        value,
+        error_msg
+    );
+
+    if (is_success(send_state)) {
+        cout << "\nDispositivos " << (value ? "acionados" : "desligados") << " com sucesso" << endl;
+    } else {
+        cout << "Falha ao acionar os dispositivos: " << error_msg << endl;
+    }
+}
+
 void Menu::clear_screen() {
     system(CLEAR);
 }
@@ -231,6 +249,14 @@ void Menu::actions_menu_loop() {
             get_room_name_loop(call_action_to_tag);
             action_res = true;
         } else if (option == 2) {
+            // TODO: Activate all
+            get_room_name_loop([] (Room * room) { call_action_to_room(room, true); });
+            action_res = true;
+        } else if (option == 3) {
+            // TODO: Deactivate all
+            get_room_name_loop([] (Room * room) { call_action_to_room(room, false); });
+            action_res = true;
+        } else if (option == 4) {
             clear_screen();
             break;
         }

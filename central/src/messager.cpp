@@ -167,8 +167,6 @@ state Messager::send_json_message_wait_response(
 
     send_recv_state = receive_message_from_socket(socket_descriptor, response_msg);
 
-    cout << "after receive message:\n\t" << response_msg << endl;
-
     if (is_error(send_recv_state)) return send_recv_state;
 
     if (close_socket) close(socket_descriptor);
