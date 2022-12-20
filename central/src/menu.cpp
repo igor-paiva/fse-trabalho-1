@@ -273,11 +273,9 @@ void Menu::actions_menu_loop() {
             get_room_name_loop(call_action_to_tag);
             action_res = true;
         } else if (option == 2) {
-            // TODO: Activate all
             get_room_name_loop([] (Room * room) { call_action_to_room(room, true); });
             action_res = true;
         } else if (option == 3) {
-            // TODO: Deactivate all
             get_room_name_loop([] (Room * room) { call_action_to_room(room, false); });
             action_res = true;
         } else if (option == 4) {

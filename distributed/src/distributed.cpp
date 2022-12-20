@@ -271,7 +271,6 @@ void answer_central_server(int server_sd, struct sockaddr_in client_addr) {
 
 void send_existence_to_server(string server_hostname, uint16_t server_port) {
     while (true) {
-        string message;
         cJSON * json = cJSON_CreateObject();
 
         cout << "Trying to warn central server of this room existence...\n" << endl;
@@ -279,14 +278,12 @@ void send_existence_to_server(string server_hostname, uint16_t server_port) {
         cJSON_AddItemToObject(json, "action", cJSON_CreateString("update_room_data"));
         cJSON_AddItemReferenceToObject(json, "room_data", room->to_json());
 
-        message = cJSON_PrintUnformatted(json);
-
-        cJSON_Delete(json);
-
-        state send_state = Messager::send_string_message(
+        state send_state = Messager::send_json_message(
             server_hostname,
             server_port,
-            message
+            json,
+            true,
+            true
         );
 
         if (is_error(send_state)) {
