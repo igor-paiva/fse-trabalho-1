@@ -51,10 +51,22 @@ string Room::to_string() {
 
     os << this->name << endl;
 
+    os << "\tSaídas:" << endl;
+
     for (auto device_data : this->output_devices) {
-        os << "\n\t" << device_data.tag << endl;
-        os << "\t\t" << "Tipo: " << device_data.type << endl;
-        os << "\t\t" << "Estado: " << (this->devices_values[device_data.tag] ? "Ligado" : "Desligado") << endl;
+        os << "\n\t\t" << device_data.tag << endl;
+        os << "\t\t\t" << "Tipo: " << device_data.type << endl;
+        os << "\t\t\t" << "Estado: " << (this->devices_values[device_data.tag] ? "Ligado" : "Desligado") << endl;
+    }
+
+    os << "\tEntradas:" << endl;
+
+    for (auto device_data : this->input_devices) {
+        if (device_data.type == "contagem") continue;
+
+        os << "\n\t\t" << device_data.tag << endl;
+        os << "\t\t\t" << "Tipo: " << device_data.type << endl;
+        os << "\t\t\t" << "Estado: " << (this->devices_values[device_data.tag] ? "Ligado" : "Desligado") << endl;
     }
 
     return os.str();
