@@ -1,6 +1,6 @@
 CC = gcc
 CPPC = g++
-LDFLAGS =
+LDFLAGS = -lpthread
 BLDDIR = .
 INCDIR = $(BLDDIR)/inc
 SRCDIR = $(BLDDIR)/src
