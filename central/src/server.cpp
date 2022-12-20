@@ -78,13 +78,6 @@ void handle_update_room_data(int server_sd, cJSON * request_data, char * client_
     }
 
     connected_rooms_mutex.unlock();
-
-    // TODO: remove print
-    char * request_data_str = cJSON_Print(request_data);
-
-    cout << "Ação de atualizar os dado da sala\n\t" << request_data_str << endl;
-
-    free(request_data_str);
 }
 
 void handle_update_device_value(int server_sd, cJSON * request_data) {
@@ -108,7 +101,6 @@ void handle_update_device_value(int server_sd, cJSON * request_data) {
 
     connected_rooms_mutex.unlock();
 
-    // TODO: check if smoke was detected and turn on buzzer in all rooms
     if (device_type == "fumaca" && value) {
         thread (turn_on_off_buzzer_in_all_rooms, "turn_on_buzzer").detach();
     } else if (device_type == "fumaca" && !value) {

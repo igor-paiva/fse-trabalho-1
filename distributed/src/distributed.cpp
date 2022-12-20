@@ -367,17 +367,11 @@ void monitor_sensor(DeviceData device_data) {
 
         state get_state = room->get_device_value(device_data.tag, &current_value);
 
-        // TODO: remove this
-        cout << "Monitorando " << device_data.tag << ". Valor lido: " << read_value << ". Valor atual: " << current_value << endl;
-
         if (is_success(read_state) && is_success(get_state) && current_value != read_value) {
             room->set_device_value(device_data.tag, read_value);
 
             thread (send_sensor_update_message, &device_data, read_value).detach();
         }
-
-        // TODO: remove this
-        cout << endl << endl;
 
         this_thread::sleep_for(50ms);
     }
@@ -388,9 +382,6 @@ void start_sensors_threads() {
 
     for (DeviceData data : input_devices) {
         if (data.type == "presenca" || data.type == "fumaca" || data.type == "janela" || data.type == "porta") {
-            // TODO: remove this
-            cout << data.tag << endl;
-
             thread (monitor_sensor, data).detach();
         }
     }
@@ -414,7 +405,6 @@ int main(int argc, char * argv[]) {
 
     cout << "Central server was warned of this room existence...\n" << endl;
 
-    // TODO: uncomment this
     start_sensors_threads();
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
@@ -447,14 +437,11 @@ int main(int argc, char * argv[]) {
         addr_len = sizeof(client_addr);
         accept_sd = accept(sd, (struct sockaddr *) &client_addr, &addr_len);
 
-        // TODO: return error and close socket if it is not from the registered central server IP and port
-
         if (accept_sd < 0) {
             cout << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port) << "=> Accept fail" << endl;
             continue;
         }
 
-        // Is this really necessary? Does the central server send messages to distributed simultaneously?
         thread (answer_central_server, accept_sd, client_addr).detach();
     }
 
