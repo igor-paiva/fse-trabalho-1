@@ -7,6 +7,8 @@ extern mutex connected_rooms_mutex;
 extern bool alarm_system;
 
 void print_rooms_info_summary() {
+    cout << "\nAlarme: " << (alarm_system ? "ligado" : "desligado") << endl;
+
     lock_guard<mutex> lock(connected_rooms_mutex);
 
     cout << "\nSalas conectadas: " << connected_rooms.size() << endl;
