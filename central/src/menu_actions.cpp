@@ -48,6 +48,27 @@ state MenuActions::turn_off_alarm(string & error_msg) {
 
             i++;
         }
+    } else {
+        cJSON * json = cJSON_CreateObject();
+
+        cJSON_AddItemToObject(json, "action", cJSON_CreateString("turn_off_buzzer"));
+
+        for (auto& [key, room] : connected_rooms) {
+            for (int i = 0; i < 3; i++) {
+                state send_state = Messager::send_async_json_message(
+                    room->get_room_service_address(),
+                    room->get_room_service_port(),
+                    json,
+                    false
+                );
+
+                if (is_success(send_state)) break;
+            }
+        }
+
+        cJSON_Delete(json);
+
+        alarm_system = false;
     }
 
     return SUCCESS;
