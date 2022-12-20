@@ -7,12 +7,12 @@ extern mutex connected_rooms_mutex;
 
 extern bool alarm_system;
 
-void turn_on_buzzer_in_all_rooms() {
+void turn_on_off_buzzer_in_all_rooms(const char * action) {
     lock_guard<mutex> lock(connected_rooms_mutex);
 
     cJSON * json = cJSON_CreateObject();
 
-    cJSON_AddItemToObject(json, "action", cJSON_CreateString("turn_on_buzzer"));
+    cJSON_AddItemToObject(json, "action", cJSON_CreateString(action));
 
     for (auto& [key, room] : connected_rooms) {
         for (int i = 0; i < 3; i++) {
@@ -28,6 +28,29 @@ void turn_on_buzzer_in_all_rooms() {
     }
 
     cJSON_Delete(json);
+}
+
+void check_all_rooms_for_smoke() {
+    lock_guard<mutex> lock(connected_rooms_mutex);
+
+    bool has_smoke = false;
+
+    for (auto& [key, room] : connected_rooms) {
+        for (auto data : room->get_input_devices()) {
+            if (data.type != "fumaca") continue;
+
+            bool value;
+
+            room->get_device_value(data.tag, &value);
+
+            if (value) {
+                has_smoke = true;
+                break;
+            }
+        }
+    }
+
+    if (!has_smoke) turn_on_off_buzzer_in_all_rooms("turn_off_buzzer");
 }
 
 void handle_update_room_data(int server_sd, cJSON * request_data) {
@@ -84,10 +107,15 @@ void handle_update_device_value(int server_sd, cJSON * request_data) {
     connected_rooms_mutex.unlock();
 
     // TODO: check if smoke was detected and turn on buzzer in all rooms
+    if (device_type == "fumaca" && value) {
+        thread (turn_on_off_buzzer_in_all_rooms, "turn_on_buzzer").detach();
+    } else if (device_type == "fumaca" && !value) {
+        thread (check_all_rooms_for_smoke).detach();
+    }
 
     if (device_type == "presenca" || device_type == "janela" || device_type == "porta") {
         if (alarm_system && value) {
-            thread (turn_on_buzzer_in_all_rooms).detach();
+            thread (turn_on_off_buzzer_in_all_rooms, "turn_on_buzzer").detach();
         }
     }
 
