@@ -31,6 +31,7 @@ unordered_map<string, Room *> connected_rooms;
 mutex connected_rooms_mutex;
 
 string log_file_path;
+bool alarm_system = false;
 
 void print_msg_and_exit(const string message) {
     cout << message << endl;

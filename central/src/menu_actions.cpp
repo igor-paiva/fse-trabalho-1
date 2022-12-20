@@ -6,6 +6,52 @@ extern unordered_map<string, Room *> connected_rooms;
 extern mutex connected_rooms_mutex;
 
 extern string log_file_path;
+extern bool alarm_system;
+
+void MenuActions::turn_on_alarm() {
+    alarm_system = true;
+}
+
+state MenuActions::turn_off_alarm(string & error_msg) {
+    lock_guard<mutex> lock(connected_rooms_mutex);
+
+    bool has_alarm_trigger_activated = false;
+    vector<string> activated_devices;
+
+    for (auto& [key, room] : connected_rooms) {
+        for (auto data : room->get_input_devices()) {
+            bool device_value;
+
+            if (data.type == "presenca" || data.type == "janela" || data.type == "porta") {
+                room->get_device_value(data.tag, &device_value);
+
+                if (device_value) {
+                    activated_devices.push_back(data.tag + " (" + key + ") ");
+
+                    has_alarm_trigger_activated = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (has_alarm_trigger_activated) {
+        int i = 1;
+        error_msg = "Não possível desativar o alarme pois os seguintes dispositivos ainda estão ativos: ";
+
+        for (auto activated_device : activated_devices) {
+            if (i == 1 || i == (int) activated_devices.size()) {
+                error_msg += activated_device;
+            } else {
+                error_msg = error_msg + ", " + activated_device;
+            }
+
+            i++;
+        }
+    }
+
+    return SUCCESS;
+}
 
 state MenuActions::send_set_all_output_device_message(string room_name, bool value, string & error_msg) {
     state send_state;

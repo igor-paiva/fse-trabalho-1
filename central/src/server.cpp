@@ -5,6 +5,31 @@ using namespace std;
 extern unordered_map<string, Room *> connected_rooms;
 extern mutex connected_rooms_mutex;
 
+extern bool alarm_system;
+
+void turn_on_buzzer_in_all_rooms() {
+    lock_guard<mutex> lock(connected_rooms_mutex);
+
+    cJSON * json = cJSON_CreateObject();
+
+    cJSON_AddItemToObject(json, "action", cJSON_CreateString("turn_on_buzzer"));
+
+    for (auto& [key, room] : connected_rooms) {
+        for (int i = 0; i < 3; i++) {
+            state send_state = Messager::send_async_json_message(
+                room->get_room_service_address(),
+                room->get_room_service_port(),
+                json,
+                false
+            );
+
+            if (is_success(send_state)) break;
+        }
+    }
+
+    cJSON_Delete(json);
+}
+
 void handle_update_room_data(int server_sd, cJSON * request_data) {
     if (!cJSON_HasObjectItem(request_data, "room_data")) {
         Messager::send_error_message(server_sd, "Chave 'room_data' é obrigatória");
@@ -41,11 +66,13 @@ void handle_update_device_value(int server_sd, cJSON * request_data) {
     bool has_tag = cJSON_HasObjectItem(request_data, "tag");
     bool has_room_name = cJSON_HasObjectItem(request_data, "room_name");
     bool has_value = cJSON_HasObjectItem(request_data, "value");
+    bool has_type = cJSON_HasObjectItem(request_data, "type");
 
-    if (!has_tag || !has_value || !has_room_name) return;
+    if (!has_tag || !has_value || !has_room_name || !has_type) return;
 
     bool value = cJSON_IsTrue(cJSON_GetObjectItem(request_data, "value"));
     string device_tag = cJSON_GetObjectItem(request_data, "tag")->valuestring;
+    string device_type = cJSON_GetObjectItem(request_data, "type")->valuestring;
     string room_name = cJSON_GetObjectItem(request_data, "room_name")->valuestring;
 
     connected_rooms_mutex.lock();
@@ -55,6 +82,14 @@ void handle_update_device_value(int server_sd, cJSON * request_data) {
     }
 
     connected_rooms_mutex.unlock();
+
+    // TODO: check if smoke was detected and turn on buzzer in all rooms
+
+    if (device_type == "presenca" || device_type == "janela" || device_type == "porta") {
+        if (alarm_system && value) {
+            thread (turn_on_buzzer_in_all_rooms).detach();
+        }
+    }
 
     // TODO: remove print
     char * request_data_str = cJSON_Print(request_data);

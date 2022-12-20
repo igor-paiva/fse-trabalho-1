@@ -4,6 +4,7 @@ using namespace std;
 
 extern unordered_map<string, Room *> connected_rooms;
 extern mutex connected_rooms_mutex;
+extern bool alarm_system;
 
 void print_rooms_info_summary() {
     lock_guard<mutex> lock(connected_rooms_mutex);
@@ -33,7 +34,8 @@ void print_main_menu_options() {
     cout << "\n\n1) Listar detalhes todas as salas" << endl;
     cout << "2) Listar detalhes de uma sala" << endl;
     cout << "3) Ações nas salas" << endl;
-    cout << "4) Sair" << endl;
+    cout << "4) " << (alarm_system ? "Desligar" : "Ligar") << " sistema de alarme" << endl;
+    cout << "5) Sair" << endl;
 }
 
 int read_menu_option() {
@@ -63,6 +65,19 @@ void print_actions_menu_options() {
     cout << "4) Voltar" << endl;
 }
 
+void turn_on_off_alarm_system() {
+    if (!alarm_system) {
+        MenuActions::turn_on_alarm();
+    } else {
+        string message = "";
+
+        MenuActions::turn_off_alarm(message);
+
+        if (message.length() > 0)
+            cout << "\n\n" << message << "\n" << endl;
+    }
+}
+
 bool trigger_main_menu_action(int option) {
     switch(option) {
         case 1:
@@ -76,6 +91,9 @@ bool trigger_main_menu_action(int option) {
             Menu::actions_menu_loop();
             break;
         case 4:
+            turn_on_off_alarm_system();
+            break;
+        case 5:
             // TODO: do a gracefully shutdown
             cout << "\nSaindo..." << endl;
             exit(0);
