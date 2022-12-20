@@ -89,7 +89,7 @@ size_t Messager::send_success_message(int descriptor, cJSON * json) {
     if (json == NULL)
         return send_message_socket(descriptor, "{\"success\":true}");
 
-    cJSON_AddItemToObject(json, "success", cJSON_CreateBool(cJSON_True));
+    cJSON_AddItemToObject(json, "success", cJSON_CreateBool(true));
 
     string message = cJSON_PrintUnformatted(json);
 
@@ -167,7 +167,7 @@ state Messager::send_json_response(
         return sent_bytes > 0 ? ((state) SUCCESS) : ((state) FAIL_TO_SEND_MESSAGE_SOCKET);
     }
 
-    cJSON_AddItemToObject(json, "success", cJSON_CreateBool(status ? cJSON_True : cJSON_False));
+    cJSON_AddItemToObject(json, "success", cJSON_CreateBool(status));
 
     if (!status)
         cJSON_AddItemToObject(json, "error_msg", cJSON_CreateString(error_msg.c_str()));

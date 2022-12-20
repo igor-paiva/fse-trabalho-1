@@ -342,7 +342,7 @@ void send_sensor_update_message(DeviceData * device_data, bool value) {
     cJSON_AddItemToObject(json_msg, "room_name", cJSON_CreateString(room->get_name().c_str()));
     cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(device_data->tag.c_str()));
     cJSON_AddItemToObject(json_msg, "type", cJSON_CreateString(device_data->type.c_str()));
-    cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value ? cJSON_True : cJSON_False));
+    cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value));
 
     for (int i = 0; i < SENSOR_UPDATE_MAX_RETRIES; i++) {
         state send_state = Messager::send_json_message(

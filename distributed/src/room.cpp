@@ -84,7 +84,7 @@ void Room::add_devices_to_json_array(cJSON * array, vector<DeviceData> devices) 
 
         cJSON_AddItemToObject(item, "tag", cJSON_CreateString(devices[i].tag.c_str()));
         cJSON_AddItemToObject(item, "type", cJSON_CreateString(devices[i].type.c_str()));
-        cJSON_AddItemToObject(item, "value", cJSON_CreateBool(this->devices_values[devices[i].tag] ? cJSON_True : cJSON_False));
+        cJSON_AddItemToObject(item, "value", cJSON_CreateBool(this->devices_values[devices[i].tag]));
 
         cJSON_AddItemToArray(array, item);
     }
