@@ -29,10 +29,10 @@ state MenuActions::turn_off_alarm(string & error_msg) {
         "-"
     );
 
-    lock_guard<mutex> lock(connected_rooms_mutex);
-
     bool has_alarm_trigger_activated = false;
     vector<string> activated_devices;
+
+    connected_rooms_mutex.lock();
 
     for (auto& [key, room] : connected_rooms) {
         for (auto data : room->get_input_devices()) {
@@ -50,6 +50,8 @@ state MenuActions::turn_off_alarm(string & error_msg) {
             }
         }
     }
+
+    connected_rooms_mutex.unlock();
 
     if (has_alarm_trigger_activated) {
         int i = 1;
@@ -69,6 +71,8 @@ state MenuActions::turn_off_alarm(string & error_msg) {
 
         cJSON_AddItemToObject(json, "action", cJSON_CreateString("turn_off_buzzer"));
 
+        connected_rooms_mutex.lock();
+
         for (auto& [key, room] : connected_rooms) {
             for (int i = 0; i < 3; i++) {
                 state send_state = Messager::send_async_json_message(
@@ -83,6 +87,8 @@ state MenuActions::turn_off_alarm(string & error_msg) {
                 this_thread::sleep_for(50ms);
             }
         }
+
+        connected_rooms_mutex.unlock();
 
         cJSON_Delete(json);
 

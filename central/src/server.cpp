@@ -8,11 +8,11 @@ extern mutex connected_rooms_mutex;
 extern bool alarm_system;
 
 void turn_on_off_buzzer_in_all_rooms(const char * action) {
-    lock_guard<mutex> lock(connected_rooms_mutex);
-
     cJSON * json = cJSON_CreateObject();
 
     cJSON_AddItemToObject(json, "action", cJSON_CreateString(action));
+
+    connected_rooms_mutex.lock();
 
     for (auto& [key, room] : connected_rooms) {
         for (int i = 0; i < 3; i++) {
@@ -29,11 +29,13 @@ void turn_on_off_buzzer_in_all_rooms(const char * action) {
         }
     }
 
+    connected_rooms_mutex.unlock();
+
     cJSON_Delete(json);
 }
 
 void check_all_rooms_for_smoke() {
-    lock_guard<mutex> lock(connected_rooms_mutex);
+    connected_rooms_mutex.lock();
 
     bool has_smoke = false;
 
@@ -51,6 +53,8 @@ void check_all_rooms_for_smoke() {
             }
         }
     }
+
+    connected_rooms_mutex.unlock();
 
     if (!has_smoke) turn_on_off_buzzer_in_all_rooms("turn_off_buzzer");
 }
