@@ -55,7 +55,7 @@ void check_all_rooms_for_smoke() {
     if (!has_smoke) turn_on_off_buzzer_in_all_rooms("turn_off_buzzer");
 }
 
-void handle_update_room_data(int server_sd, cJSON * request_data) {
+void handle_update_room_data(int server_sd, cJSON * request_data, char * client_addr) {
     if (!cJSON_HasObjectItem(request_data, "room_data")) {
         Messager::send_error_message(server_sd, "Chave 'room_data' é obrigatória");
         return;
@@ -68,13 +68,13 @@ void handle_update_room_data(int server_sd, cJSON * request_data) {
     connected_rooms_mutex.lock();
 
     if (connected_rooms.count(room_name) == 0) {
-        connected_rooms[room_name] = new Room(room_data);
+        connected_rooms[room_name] = new Room(room_data, client_addr);
     } else {
         Room * stored_room = connected_rooms[room_name];
 
         delete stored_room;
 
-        connected_rooms[room_name] = new Room(room_data);
+        connected_rooms[room_name] = new Room(room_data, client_addr);
     }
 
     connected_rooms_mutex.unlock();
@@ -129,7 +129,7 @@ void handle_update_device_value(int server_sd, cJSON * request_data) {
     free(request_data_str);
 }
 
-void handle_requested_action(int server_sd, cJSON * request_data) {
+void handle_requested_action(int server_sd, cJSON * request_data, char * client_addr) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
         Messager::send_error_message(server_sd, "Ação desconhecida");
         return;
@@ -143,7 +143,7 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
     }
 
     if (strcmp(action, "update_room_data") == 0) {
-        handle_update_room_data(server_sd, request_data);
+        handle_update_room_data(server_sd, request_data, client_addr);
     } else if (strcmp(action, "update_device_value") == 0) {
         handle_update_device_value(server_sd, request_data);
     } else {
@@ -151,7 +151,7 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
     }
 }
 
-void handle_request(int server_sd, string request_message) {
+void handle_request(int server_sd, string request_message, char * client_addr) {
     cJSON * request_data;
 
     /* logging received requests in the console */
@@ -165,7 +165,7 @@ void handle_request(int server_sd, string request_message) {
         return;
     }
 
-    handle_requested_action(server_sd, request_data);
+    handle_requested_action(server_sd, request_data, client_addr);
 
     cJSON_Delete(request_data);
 }
@@ -176,7 +176,7 @@ void answer_distributed_server(int server_sd, struct sockaddr_in client_addr) {
     state recv_state = Messager::receive_message_from_socket(server_sd, message);
 
     if (is_success(recv_state)) {
-        handle_request(server_sd, message);
+        handle_request(server_sd, message, inet_ntoa(client_addr.sin_addr));
     } else {
         Messager::send_error_message(
             server_sd,

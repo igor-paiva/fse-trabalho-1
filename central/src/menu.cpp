@@ -231,7 +231,7 @@ void call_action_to_tag(Room * room) {
     if (is_success(send_state)) {
         cout << "\nDispositivo acionado com sucesso" << endl;
     } else {
-        cout << "Falha ao acionar o dispositivo: " << error_msg << endl;
+        cout << "Falha ao acionar o dispositivo: " << send_state << ". " << error_msg << endl;
     }
 }
 

@@ -26,7 +26,7 @@ typedef struct {
 class Room {
 
 public:
-    Room(cJSON * json);
+    Room(cJSON * json, char * client_addr);
 
     unordered_map<string, bool> get_devices_values();
     state get_device_value(string tag, bool * value);
@@ -55,7 +55,7 @@ private:
 
     unordered_map<string, bool> devices_values;
 
-    void initialize_data(cJSON * json);
+    void initialize_data(cJSON * json, char * client_addr);
     vector<DeviceData> get_devices_data(cJSON * json, string item);
 
 };

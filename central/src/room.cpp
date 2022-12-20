@@ -1,16 +1,17 @@
 #include "room.hpp"
 
-Room::Room(cJSON * json) {
-    this->initialize_data(json);
+Room::Room(cJSON * json, char * client_addr) {
+    this->initialize_data(json, client_addr);
 }
 
-void Room::initialize_data(cJSON * json) {
+void Room::initialize_data(cJSON * json, char * client_addr) {
     lock_guard<mutex> lock(this->room_mutex);
 
     this->name = cJSON_GetObjectItem(json, "name")->valuestring;
     // TODO: the IP sent is the one on the init file, so we must use de public IP (use sockaddr_in)
-    this->room_service_address = cJSON_GetObjectItem(json, "ip_address")->valuestring;
+    this->room_service_address = client_addr;
     this->room_service_port = (uint16_t) cJSON_GetObjectItem(json, "port")->valueint;
+    // this->room_service_address = cJSON_GetObjectItem(json, "ip_address")->valuestring;
 
     this->output_devices = get_devices_data(json, "outputs");
     this->input_devices = get_devices_data(json, "inputs");
