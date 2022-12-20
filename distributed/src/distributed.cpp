@@ -160,8 +160,6 @@ state get_device_data_by_request_tag(int server_sd, cJSON * request_data, Device
 }
 
 state set_buzzer_to_value(bool value) {
-    bool current_value;
-    state get_state;
     DeviceData device_data;
 
     for (auto data : room->get_output_devices()) {
@@ -171,15 +169,7 @@ state set_buzzer_to_value(bool value) {
         }
     }
 
-    get_state = room->get_device_value(device_data.tag, &current_value);
-
-    if (is_error(get_state)) return get_state;
-
-    if (current_value != value) {
-        return GpioInterface::write_pin(device_data.gpio, value);
-    }
-
-    return VALUE_DID_NOT_CHANGE;
+    return GpioInterface::write_pin(device_data.gpio, value);
 }
 
 void handle_requested_action(int server_sd, cJSON * request_data) {
@@ -332,13 +322,13 @@ cJSON * read_initialization_json(char * json_path) {
     return json;
 }
 
-void send_sensor_update_message(DeviceData * device_data, bool value) {
+void send_sensor_update_message(DeviceData device_data, bool value) {
     cJSON * json_msg = cJSON_CreateObject();
 
     cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("update_device_value"));
     cJSON_AddItemToObject(json_msg, "room_name", cJSON_CreateString(room->get_name().c_str()));
-    cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(device_data->tag.c_str()));
-    cJSON_AddItemToObject(json_msg, "type", cJSON_CreateString(device_data->type.c_str()));
+    cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(device_data.tag.c_str()));
+    cJSON_AddItemToObject(json_msg, "type", cJSON_CreateString(device_data.type.c_str()));
     cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value));
 
     for (int i = 0; i < SENSOR_UPDATE_MAX_RETRIES; i++) {
@@ -370,7 +360,7 @@ void monitor_sensor(DeviceData device_data) {
         if (is_success(read_state) && is_success(get_state) && current_value != read_value) {
             room->set_device_value(device_data.tag, read_value);
 
-            thread (send_sensor_update_message, &device_data, read_value).detach();
+            thread (send_sensor_update_message, device_data, read_value).detach();
         }
 
         this_thread::sleep_for(50ms);
@@ -378,9 +368,7 @@ void monitor_sensor(DeviceData device_data) {
 }
 
 void start_sensors_threads() {
-    vector<DeviceData> input_devices = room->get_input_devices();
-
-    for (DeviceData data : input_devices) {
+    for (DeviceData data : room->get_input_devices()) {
         if (data.type == "presenca" || data.type == "fumaca" || data.type == "janela" || data.type == "porta") {
             thread (monitor_sensor, data).detach();
         }
