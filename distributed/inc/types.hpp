@@ -20,7 +20,8 @@ typedef enum {
 
 /* those will always be negative */
 typedef enum {
-    ALLOC_FAIL = INT_MIN,
+    ERROR = INT_MIN,
+    ALLOC_FAIL,
     UNABLE_OPEN_FILE,
     UNABLE_READ_FILE,
     UNABLE_WRITE_FILE,

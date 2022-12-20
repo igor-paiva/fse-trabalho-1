@@ -74,7 +74,12 @@ void change_pin_value_action(int server_sd, bool value, DeviceData * data) {
     bool current_value;
     state get_state = room->get_device_value(data->tag, &current_value);
 
-    if (is_success(get_state) && current_value != value) {
+    if (is_error(get_state)) {
+        Messager::send_error_message(server_sd, "Falha ao buscar o estado atual do dispositivo");
+        return;
+    }
+
+    if (current_value != value) {
         state ret = GpioInterface::write_pin(data->gpio, value);
 
         if (is_success(ret))
@@ -100,6 +105,7 @@ void change_all_output_to_value(int server_sd, bool value) {
             if (is_error(ret)) {
                 error_devices.push_back(device_data.tag);
             } else {
+                room->set_device_value(device_data.tag, value);
                 cJSON_AddItemToArray(array, cJSON_CreateString(device_data.tag.c_str()));
             }
         }
@@ -125,30 +131,32 @@ void change_all_output_to_value(int server_sd, bool value) {
     }
 }
 
-DeviceData * get_device_data_by_request_tag(int server_sd, cJSON * request_data) {
+state get_device_data_by_request_tag(int server_sd, cJSON * request_data, DeviceData * device_data) {
     char * tag;
     unordered_map<string, DeviceData> devices_map;
 
     if (!cJSON_HasObjectItem(request_data, "tag")) {
         Messager::send_error_message(server_sd, "Tag não informada");
-        return NULL;
+        return ERROR;
     }
 
     tag = cJSON_GetObjectItem(request_data, "tag")->valuestring;
 
     if (tag == NULL) {
         Messager::send_error_message(server_sd, "Tag não informada");
-        return NULL;
+        return ERROR;
     }
 
     devices_map = room->get_devices_map();
 
     if (devices_map.count(tag) == 0) {
         Messager::send_error_message(server_sd, "Tag desconhecida");
-        return NULL;
+        return ERROR;
     }
 
-    return &devices_map[tag];
+    *device_data = devices_map[tag];
+
+    return SUCCESS;
 }
 
 void handle_requested_action(int server_sd, cJSON * request_data) {
@@ -165,21 +173,31 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
         return;
     }
 
+    cout << "request JSON:\n\t" << cJSON_Print(request_data) << endl;
+
     devices_map = room->get_devices_map();
 
     action = cJSON_GetObjectItem(request_data, "action")->valuestring;
 
     if (strcmp(action, "activate") == 0) {
+        DeviceData device_data;
+
+        get_device_data_by_request_tag(server_sd, request_data, &device_data);
+
         change_pin_value_action(
             server_sd,
             true,
-            get_device_data_by_request_tag(server_sd, request_data)
+            &device_data
         );
     } else if (strcmp(action, "deactivate") == 0) {
+        DeviceData device_data;
+
+        get_device_data_by_request_tag(server_sd, request_data, &device_data);
+
         change_pin_value_action(
             server_sd,
             false,
-            get_device_data_by_request_tag(server_sd, request_data)
+            &device_data
         );
     } else if (strcmp(action, "activate_all") == 0) {
         change_all_output_to_value(server_sd, true);
