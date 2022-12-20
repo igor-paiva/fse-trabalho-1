@@ -159,6 +159,29 @@ state get_device_data_by_request_tag(int server_sd, cJSON * request_data, Device
     return SUCCESS;
 }
 
+state set_buzzer_to_value(bool value) {
+    bool current_value;
+    state get_state;
+    DeviceData device_data;
+
+    for (auto data : room->get_output_devices()) {
+        if (data.type == "alarme") {
+            device_data = data;
+            break;
+        }
+    }
+
+    get_state = room->get_device_value(device_data.tag, &current_value);
+
+    if (is_error(get_state)) return get_state;
+
+    if (current_value != value) {
+        return GpioInterface::write_pin(device_data.gpio, value);
+    }
+
+    return VALUE_DID_NOT_CHANGE;
+}
+
 void handle_requested_action(int server_sd, cJSON * request_data) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
         Messager::send_error_message(server_sd, "Ação desconhecida");
@@ -201,6 +224,10 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
         change_all_output_to_value(server_sd, true);
     } else if (strcmp(action, "deactivate_all") == 0) {
         change_all_output_to_value(server_sd, false);
+    } else if (strcmp(action, "turn_on_buzzer") == 0) {
+        set_buzzer_to_value(true);
+    } else if (strcmp(action, "turn_off_buzzer") == 0) {
+        set_buzzer_to_value(false);
     } else {
         Messager::send_error_message(server_sd, "Ação desconhecida");
     }
