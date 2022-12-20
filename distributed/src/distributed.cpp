@@ -173,8 +173,6 @@ void handle_requested_action(int server_sd, cJSON * request_data) {
         return;
     }
 
-    cout << "request JSON:\n\t" << cJSON_Print(request_data) << endl;
-
     devices_map = room->get_devices_map();
 
     action = cJSON_GetObjectItem(request_data, "action")->valuestring;
@@ -310,12 +308,13 @@ cJSON * read_initialization_json(char * json_path) {
     return json;
 }
 
-void send_sensor_update_message(string tag, bool value) {
+void send_sensor_update_message(DeviceData * device_data, bool value) {
     cJSON * json_msg = cJSON_CreateObject();
 
     cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("update_device_value"));
     cJSON_AddItemToObject(json_msg, "room_name", cJSON_CreateString(room->get_name().c_str()));
-    cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(tag.c_str()));
+    cJSON_AddItemToObject(json_msg, "tag", cJSON_CreateString(device_data->tag.c_str()));
+    cJSON_AddItemToObject(json_msg, "type", cJSON_CreateString(device_data->type.c_str()));
     cJSON_AddItemToObject(json_msg, "value", cJSON_CreateBool(value ? cJSON_True : cJSON_False));
 
     for (int i = 0; i < SENSOR_UPDATE_MAX_RETRIES; i++) {
@@ -348,7 +347,7 @@ void monitor_sensor(DeviceData device_data) {
         if (is_success(read_state) && is_success(get_state) && current_value != read_value) {
             room->set_device_value(device_data.tag, read_value);
 
-            thread (send_sensor_update_message, device_data.tag, read_value).detach();
+            thread (send_sensor_update_message, &device_data, read_value).detach();
         }
 
         // TODO: remove this
