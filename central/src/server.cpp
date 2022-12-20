@@ -24,6 +24,8 @@ void turn_on_off_buzzer_in_all_rooms(const char * action) {
             );
 
             if (is_success(send_state)) break;
+
+            this_thread::sleep_for(50ms);
         }
     }
 

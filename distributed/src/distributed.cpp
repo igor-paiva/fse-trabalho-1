@@ -354,6 +354,8 @@ void send_sensor_update_message(DeviceData * device_data, bool value) {
         );
 
         if (is_success(send_state)) break;
+
+        this_thread::sleep_for(60ms);
     }
 
     cJSON_Delete(json_msg);
