@@ -9,10 +9,26 @@ extern string log_file_path;
 extern bool alarm_system;
 
 void MenuActions::turn_on_alarm() {
+    Logger::add_action_to_log_file(
+        log_file_path.c_str(),
+        "ligar alarme",
+        "liga o sistema de alarme",
+        "-",
+        "-"
+    );
+
     alarm_system = true;
 }
 
 state MenuActions::turn_off_alarm(string & error_msg) {
+    Logger::add_action_to_log_file(
+        log_file_path.c_str(),
+        "desligar alarme",
+        "desliga o sistema de alarme",
+        "-",
+        "-"
+    );
+
     lock_guard<mutex> lock(connected_rooms_mutex);
 
     bool has_alarm_trigger_activated = false;
