@@ -6,6 +6,7 @@ INCDIR = $(BLDDIR)/inc
 SRCDIR = $(BLDDIR)/src
 OBJDIR = $(BLDDIR)/obj
 CFLAGS = -c -Wall -I$(INCDIR)
+CPPFLAGS = -c -Wall -std=c++17 -I$(INCDIR)
 SRCCPP = $(wildcard $(SRCDIR)/*.cpp)
 OBJCPP = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCCPP))
 SRCC = $(wildcard $(SRCDIR)/*.c)
@@ -26,7 +27,7 @@ $(EXE): $(OBJ)
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	@mkdir -p $(@D)
-	$(CPPC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+	$(CPPC) $(CPPFLAGS) $< -o $@ $(LDFLAGS)
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.c
 	@mkdir -p $(@D)
