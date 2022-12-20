@@ -21,6 +21,7 @@
 #include "messager.hpp"
 #include "server.hpp"
 #include "menu.hpp"
+#include "logger.hpp"
 
 #define QLEN 10
 
@@ -28,6 +29,8 @@ using namespace std;
 
 unordered_map<string, Room *> connected_rooms;
 mutex connected_rooms_mutex;
+
+string log_file_path;
 
 void print_msg_and_exit(const string message) {
     cout << message << endl;
@@ -69,6 +72,8 @@ int main(int argc, char * argv[]) {
     handle_critical_failure_int(listen_ret, "Fail to listen on socket");
 
     thread (Server::start_server, server_sd).detach();
+
+    Logger::create_log_file(log_file_path);
 
     Menu::main_menu_loop();
 

@@ -5,10 +5,20 @@ using namespace std;
 extern unordered_map<string, Room *> connected_rooms;
 extern mutex connected_rooms_mutex;
 
+extern string log_file_path;
+
 state MenuActions::send_set_all_output_device_message(string room_name, bool value, string & error_msg) {
     state send_state;
     string response_msg;
     cJSON * json, * response_json;
+
+    Logger::add_action_to_log_file(
+        log_file_path.c_str(),
+        (value ? "acionar todos" : "desligar todos"),
+        "mudar valor de todos os dispositivo de saída",
+        room_name,
+        "-"
+    );
 
     connected_rooms_mutex.lock();
 
@@ -63,6 +73,14 @@ state MenuActions::send_set_output_device_message(string room_name, string devic
     bool current_value;
     string response_msg;
     cJSON * json, * response_json;
+
+    Logger::add_action_to_log_file(
+        log_file_path.c_str(),
+        (current_value ? "desligar" : "acionar"),
+        "mudar valor de dispositivo de saída",
+        room_name,
+        device_tag
+    );
 
     connected_rooms_mutex.lock();
 

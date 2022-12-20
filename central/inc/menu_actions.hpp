@@ -7,6 +7,7 @@
 #include "room.hpp"
 #include "types.hpp"
 #include "messager.hpp"
+#include "logger.hpp"
 
 using namespace std;
 

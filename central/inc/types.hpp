@@ -38,7 +38,9 @@ typedef enum {
     FAIL_TO_CONNECT_ADDRESS_SOCKET,
     FAIL_TO_CLOSE_SOCKET,
     FAIL_TO_INIT_WIRING_PI,
-    MAP_KEY_DONT_EXISTS
+    MAP_KEY_DONT_EXISTS,
+    FILE_DOES_NOT_EXISTS,
+    FILE_ALREADY_EXISTS
 } error_state;
 
 bool is_error(state value);
