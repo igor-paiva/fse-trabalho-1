@@ -112,8 +112,12 @@ int print_room_tags_menu_options(string room_name) {
     cout << "\nDispositivos conectados:\n" << endl;
 
     for (auto data: connected_rooms[room_name]->get_output_devices()) {
+        bool current_value;
+
+        connected_rooms[room_name]->get_device_value(data.tag, &current_value);
+
         if (data.type != "alarme") {
-            cout << i << ") " << data.tag << endl;
+            cout << i << ") " << data.tag << " (" << (current_value ? "ligado" : "desligado") << ")" << endl;
 
             i++;
         }
