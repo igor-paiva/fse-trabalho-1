@@ -40,6 +40,10 @@ public:
 
     string to_string();
 
+    float get_temperature();
+    float get_humidity();
+    void set_temperature_data(float temperature, float humidity);
+
 private:
     mutex room_mutex;
 
@@ -51,7 +55,9 @@ private:
     uint16_t room_service_client_port;
     vector<DeviceData> output_devices;
     vector<DeviceData> input_devices;
-    // DeviceData temperature_device;
+
+    float temperature;
+    float humidity;
 
     unordered_map<string, bool> devices_values;
 

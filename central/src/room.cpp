@@ -12,6 +12,9 @@ void Room::initialize_data(cJSON * json, char * client_addr) {
     this->room_service_port = (uint16_t) cJSON_GetObjectItem(json, "port")->valueint;
     // this->room_service_address = cJSON_GetObjectItem(json, "ip_address")->valuestring;
 
+    this->temperature = 0.0;
+    this->humidity = 0.0;
+
     this->output_devices = get_devices_data(json, "outputs");
     this->input_devices = get_devices_data(json, "inputs");
 }
@@ -50,6 +53,9 @@ string Room::to_string() {
     ostringstream os;
 
     os << this->name << endl;
+
+    os << "\tTemperatura: " << this->temperature << "ºC" << endl;
+    os << "\tUmidade: " << this->humidity << "%\n" << endl;
 
     os << "\tSaídas:" << endl;
 
@@ -125,3 +131,23 @@ vector<DeviceData> Room::get_input_devices() {
 
     return this->input_devices;
 };
+
+float Room::get_temperature() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->temperature;
+}
+
+float Room::get_humidity() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->humidity;
+}
+
+void Room::set_temperature_data(float temperature, float humidity) {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    this->temperature = temperature;
+
+    this->humidity = humidity;
+}

@@ -84,7 +84,7 @@ state MenuActions::turn_off_alarm(string & error_msg) {
 
                 if (is_success(send_state)) break;
 
-                this_thread::sleep_for(50ms);
+                this_thread::sleep_for(60ms);
             }
         }
 

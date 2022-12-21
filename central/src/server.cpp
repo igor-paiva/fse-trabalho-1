@@ -125,6 +125,26 @@ void handle_update_device_value(int server_sd, cJSON * request_data) {
     free(request_data_str);
 }
 
+void handle_update_temperature_data(int server_sd, cJSON * request_data) {
+    bool has_temperature = cJSON_HasObjectItem(request_data, "temperature");
+    bool has_humidity = cJSON_HasObjectItem(request_data, "humidity");
+    bool has_room_name = cJSON_HasObjectItem(request_data, "room_name");
+
+    if (!has_temperature || !has_humidity || !has_room_name) return;
+
+    string room_name = cJSON_GetObjectItem(request_data, "room_name")->valuestring;
+    float temperature = (float) cJSON_GetObjectItem(request_data, "tag")->valuedouble;
+    float humidity = (float) cJSON_GetObjectItem(request_data, "type")->valuedouble;
+
+    connected_rooms_mutex.lock();
+
+    if (connected_rooms.count(room_name) == 1) {
+        connected_rooms[room_name]->set_temperature_data(temperature, humidity);
+    }
+
+    connected_rooms_mutex.unlock();
+}
+
 void handle_requested_action(int server_sd, cJSON * request_data, char * client_addr) {
     if (!cJSON_HasObjectItem(request_data, "action")) {
         Messager::send_error_message(server_sd, "Ação desconhecida");
@@ -142,6 +162,8 @@ void handle_requested_action(int server_sd, cJSON * request_data, char * client_
         handle_update_room_data(server_sd, request_data, client_addr);
     } else if (strcmp(action, "update_device_value") == 0) {
         handle_update_device_value(server_sd, request_data);
+    } else if (strcmp(action, "update_temperature_data") == 0) {
+        handle_update_temperature_data(server_sd, request_data);
     } else {
         Messager::send_error_message(server_sd, "Ação desconhecida");
     }
