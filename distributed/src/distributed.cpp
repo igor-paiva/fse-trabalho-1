@@ -14,6 +14,7 @@
 #include <sstream>
 #include <mutex>
 #include <chrono>
+#include <csignal>
 
 #include "cJSON.h"
 #include "DHT22.h"
@@ -29,6 +30,31 @@ using namespace std;
 #define SENSOR_UPDATE_MAX_RETRIES 5
 
 Room * room;
+
+void handle_exit_signal(int signum) {
+    cout << "\nExiting..." << endl;
+
+    if (signum == SIGINT || signum == SIGTERM || signum == SIGQUIT) {
+        if (room && room->get_central_server_ip().length() > 0) {
+            cJSON * json_msg = cJSON_CreateObject();
+
+            cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("remove_room"));
+            cJSON_AddItemToObject(json_msg, "room_name", cJSON_CreateString(room->get_name().c_str()));
+
+            Messager::send_json_message(
+                room->get_central_server_ip(),
+                room->get_central_server_port(),
+                json_msg,
+                true,
+                false
+            );
+
+            cJSON_Delete(json_msg);
+        }
+    }
+
+    exit(0);
+}
 
 void print_msg_and_exit(const string message) {
     cout << message << endl;
@@ -432,6 +458,10 @@ int main(int argc, char * argv[]) {
         cout << "You must provide 1 argument: path to inicialization JSON file" << endl;
         exit(0);
     }
+
+    signal(SIGINT, handle_exit_signal);
+    signal(SIGTERM, handle_exit_signal);
+    signal(SIGQUIT, handle_exit_signal);
 
     cJSON * json = read_initialization_json(argv[1]);
 

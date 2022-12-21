@@ -116,13 +116,27 @@ void handle_update_device_value(int server_sd, cJSON * request_data) {
             thread (turn_on_off_buzzer_in_all_rooms, "turn_on_buzzer").detach();
         }
     }
+}
 
-    // TODO: remove print
-    char * request_data_str = cJSON_Print(request_data);
+void handle_remove_room_action(int server_sd, cJSON * request_data) {
+    bool has_room_name = cJSON_HasObjectItem(request_data, "room_name");
 
-    cout << "Ação de atualizar dispositivo\n\t" << request_data_str << endl;
+    if (!has_room_name) return;
 
-    free(request_data_str);
+    Room * room;
+    string room_name = cJSON_GetObjectItem(request_data, "room_name")->valuestring;
+
+    connected_rooms_mutex.lock();
+
+    if (connected_rooms.count(room_name) == 1) {
+        room = connected_rooms[room_name];
+    }
+
+    connected_rooms_mutex.unlock();
+
+    delete room;
+
+    connected_rooms.erase(room_name);
 }
 
 void handle_update_temperature_data(int server_sd, cJSON * request_data) {
@@ -160,6 +174,8 @@ void handle_requested_action(int server_sd, cJSON * request_data, char * client_
 
     if (strcmp(action, "update_room_data") == 0) {
         handle_update_room_data(server_sd, request_data, client_addr);
+    } else if (strcmp(action, "remove_room") == 0) {
+        handle_remove_room_action(server_sd, request_data);
     } else if (strcmp(action, "update_device_value") == 0) {
         handle_update_device_value(server_sd, request_data);
     } else if (strcmp(action, "update_temperature_data") == 0) {
