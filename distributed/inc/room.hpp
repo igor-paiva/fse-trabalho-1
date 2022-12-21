@@ -9,6 +9,7 @@
 
 #include "cJSON.h"
 #include "types.hpp"
+#include "gpio.hpp"
 
 using namespace std;
 

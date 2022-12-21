@@ -52,14 +52,18 @@ vector<DeviceData> Room::get_devices_data(cJSON * json, string item) {
 
             if (cJSON_IsObject(json_item)) {
                 DeviceData device_data;
+                bool device_value = false;
 
                 device_data.gpio = cJSON_GetObjectItem(json_item, "gpio")->valueint;
                 device_data.type = cJSON_GetObjectItem(json_item, "type")->valuestring;;
                 device_data.tag = cJSON_GetObjectItem(json_item, "tag")->valuestring;
                 device_data.pin_mode = item == "outputs" ? DEVICE_OUTPUT : DEVICE_INPUT;
-                this->devices_values[device_data.tag] = false;
 
                 devices_data.push_back(device_data);
+
+                GpioInterface::read_pin(device_data.gpio, &device_value);
+
+                this->devices_values[device_data.tag] = device_value;
 
                 this->devices_map[device_data.tag] = device_data;
             }

@@ -37,7 +37,7 @@ vector<DeviceData> Room::get_devices_data(cJSON * json, string item) {
                 device_data.tag = cJSON_GetObjectItem(json_item, "tag")->valuestring;
                 device_data.pin_mode = item == "outputs" ? DEVICE_OUTPUT : DEVICE_INPUT;
 
-                this->devices_values[device_data.tag] = false;
+                this->devices_values[device_data.tag] = cJSON_IsTrue(cJSON_GetObjectItem(json_item, "value"));
 
                 devices_data.push_back(device_data);
             }

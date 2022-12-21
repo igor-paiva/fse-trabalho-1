@@ -19,7 +19,6 @@ typedef enum {
 typedef struct {
     string type;
     string tag;
-    int gpio;
     pin_mode_t pin_mode;
 } DeviceData;
 
