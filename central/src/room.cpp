@@ -12,8 +12,8 @@ void Room::initialize_data(cJSON * json, char * client_addr) {
     this->room_service_port = (uint16_t) cJSON_GetObjectItem(json, "port")->valueint;
     // this->room_service_address = cJSON_GetObjectItem(json, "ip_address")->valuestring;
 
-    this->temperature = 0.0;
-    this->humidity = 0.0;
+    this->temperature = (float) cJSON_GetObjectItem(json, "temperature")->valuedouble;
+    this->humidity = (float) cJSON_GetObjectItem(json, "humidity")->valuedouble;
 
     this->output_devices = get_devices_data(json, "outputs");
     this->input_devices = get_devices_data(json, "inputs");

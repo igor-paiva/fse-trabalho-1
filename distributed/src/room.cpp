@@ -33,8 +33,18 @@ DeviceData Room::get_temperature_device_data(cJSON * json, string item_key) {
     device_data.tag = cJSON_GetObjectItem(device_item, "tag")->valuestring;
     device_data.pin_mode = DEVICE_INPUT;
 
-    this->temperature = 0.0;
-    this->humidity = 0.0;
+    TDHT22 * data = new TDHT22(GpioInterface::get_wiringpi_pin_value(device_data.gpio));
+
+    data->Init();
+    data->Fetch();
+
+    if (data->Valid) {
+        this->temperature = data->Temp;
+        this->humidity = data->Hum;
+    } else {
+        this->temperature = 0.0;
+        this->humidity = 0.0;
+    }
 
     return device_data;
 }
@@ -91,6 +101,9 @@ cJSON * Room::to_json() {
     cJSON_AddStringToObject(json, "name", this->name.c_str());
     cJSON_AddStringToObject(json, "ip_address", this->room_service_address.c_str());
     cJSON_AddNumberToObject(json, "port", (double) this->room_service_port);
+    cJSON_AddNumberToObject(json, "temperature", (double) this->temperature);
+    cJSON_AddNumberToObject(json, "humidity", (double) this->humidity);
+
 
     cJSON * outputs = cJSON_AddArrayToObject(json, "outputs");
     cJSON * inputs = cJSON_AddArrayToObject(json, "inputs");

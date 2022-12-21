@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "cJSON.h"
+#include "DHT22.h"
 #include "types.hpp"
 #include "gpio.hpp"
 
