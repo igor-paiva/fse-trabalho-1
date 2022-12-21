@@ -18,6 +18,25 @@ void Room::initialize_data(cJSON * json) {
 
     this->output_devices = get_devices_data(json, "outputs");
     this->input_devices = get_devices_data(json, "inputs");
+    this->temperature_device = get_temperature_device_data(json, "sensor_temperatura");
+}
+
+DeviceData Room::get_temperature_device_data(cJSON * json, string item_key) {
+    DeviceData device_data;
+
+    cJSON * devices_array = cJSON_GetObjectItem(json, item_key.c_str());
+
+    cJSON * device_item = cJSON_GetArrayItem(devices_array, 0);
+
+    device_data.gpio = cJSON_GetObjectItem(device_item, "gpio")->valueint;
+    device_data.type = cJSON_GetObjectItem(device_item, "type")->valuestring;;
+    device_data.tag = cJSON_GetObjectItem(device_item, "tag")->valuestring;
+    device_data.pin_mode = DEVICE_INPUT;
+
+    this->temperature = 0.0;
+    this->humidity = 0.0;
+
+    return device_data;
 }
 
 vector<DeviceData> Room::get_devices_data(cJSON * json, string item) {
@@ -173,3 +192,23 @@ DeviceData Room::get_temperature_device() {
 
     return this->temperature_device;
 };
+
+float Room::get_temperature() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->temperature;
+}
+
+float Room::get_humidity() {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    return this->humidity;
+}
+
+void Room::set_temperature_data(float temperature, float humidity) {
+    lock_guard<mutex> lock(this->room_mutex);
+
+    this->temperature = temperature;
+
+    this->humidity = humidity;
+}

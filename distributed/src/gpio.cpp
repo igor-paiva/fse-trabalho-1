@@ -37,6 +37,15 @@ unordered_map<int, int> GpioInterface::get_wiringpi_pins_map() {
     return map;
 }
 
+int GpioInterface::get_wiringpi_pin_value(int gpio_pin_num) {
+    unordered_map<int, int> pins_map = get_wiringpi_pins_map();
+
+    if (pins_map.count(gpio_pin_num) == 1)
+        return pins_map[gpio_pin_num];
+
+    return -1;
+}
+
 state GpioInterface::write_pin(int pin, bool value) {
     if (wiringPiSetup() != 0)
         return FAIL_TO_INIT_WIRING_PI;

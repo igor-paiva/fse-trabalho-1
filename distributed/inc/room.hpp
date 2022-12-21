@@ -48,6 +48,10 @@ public:
 
     unordered_map<string, DeviceData> get_devices_map();
 
+    float get_temperature();
+    float get_humidity();
+    void set_temperature_data(float temperature, float humidity);
+
 private:
     mutex room_mutex;
 
@@ -64,8 +68,12 @@ private:
 
     unordered_map<string, bool> devices_values;
 
+    float temperature;
+    float humidity;
+
     void initialize_data(cJSON * json);
     vector<DeviceData> get_devices_data(cJSON * json, string item);
+    DeviceData get_temperature_device_data(cJSON * json, string item_key);
     void add_devices_to_json_array(cJSON * array, vector<DeviceData> devices);
 };
 

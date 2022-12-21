@@ -16,6 +16,7 @@
 #include <chrono>
 
 #include "cJSON.h"
+#include "DHT22.h"
 #include "room.hpp"
 #include "types.hpp"
 #include "gpio.hpp"
@@ -375,6 +376,53 @@ void start_sensors_threads() {
     }
 }
 
+void send_temperature_update_message(float temperature, float humidity) {
+    cJSON * json_msg = cJSON_CreateObject();
+
+    cJSON_AddItemToObject(json_msg, "action", cJSON_CreateString("update_temperature_data"));
+    cJSON_AddItemToObject(json_msg, "room_name", cJSON_CreateString(room->get_name().c_str()));
+    cJSON_AddItemToObject(json_msg, "temperature", cJSON_CreateNumber((double) temperature));
+    cJSON_AddItemToObject(json_msg, "humidity", cJSON_CreateNumber((double) humidity));
+
+    for (int i = 0; i < SENSOR_UPDATE_MAX_RETRIES; i++) {
+        state send_state = Messager::send_json_message(
+            room->get_central_server_ip(),
+            room->get_central_server_port(),
+            json_msg,
+            true,
+            false
+        );
+
+        if (is_success(send_state)) break;
+
+        this_thread::sleep_for(60ms);
+    }
+
+    cJSON_Delete(json_msg);
+}
+
+void monitor_temperature(DeviceData device_data) {
+    TDHT22 * data = new TDHT22(GpioInterface::get_wiringpi_pin_value(device_data.gpio));
+
+    data->Init();
+
+    while (true) {
+        data->Fetch();
+
+        if (data->Valid) {
+            room->set_temperature_data(data->Temp, data->Hum);
+
+            thread (send_temperature_update_message, data->Temp, data->Hum).detach();
+
+            this_thread::sleep_for(2s);
+        } else {
+            this_thread::sleep_for(110ms);
+        }
+    }
+
+    delete data;
+}
+
 int main(int argc, char * argv[]) {
     int sd, bind_res, listen_res;
     struct sockaddr_in server_addr;
@@ -394,6 +442,8 @@ int main(int argc, char * argv[]) {
     cout << "Central server was warned of this room existence...\n" << endl;
 
     start_sensors_threads();
+
+    thread (monitor_temperature, room->get_temperature_device()).detach();
 
     memset((char *) &server_addr, 0, sizeof(server_addr));
 
