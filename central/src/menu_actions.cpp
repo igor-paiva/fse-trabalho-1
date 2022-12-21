@@ -98,6 +98,34 @@ state MenuActions::turn_off_alarm(string & error_msg) {
     return SUCCESS;
 }
 
+state MenuActions::send_set_all_output_device_message_all_rooms(bool value, string & error_msg) {
+    bool has_error = false;
+    vector<string> rooms_names;
+
+    connected_rooms_mutex.lock();
+
+    rooms_names.reserve(connected_rooms.size());
+
+    for (auto& [key, _] : connected_rooms) {
+        rooms_names.push_back(key);
+    }
+
+    connected_rooms_mutex.unlock();
+
+    for (auto room_name : rooms_names) {
+        string tmp_error_msg;
+
+        state send_state = send_set_all_output_device_message(room_name, value, tmp_error_msg);
+
+        if (is_error(send_state)) {
+            has_error = true;
+            error_msg += room_name + ": " + tmp_error_msg + "\n";
+        }
+    }
+
+    return has_error ? ((state) ERROR) : ((state) SUCCESS);
+}
+
 state MenuActions::send_set_all_output_device_message(string room_name, bool value, string & error_msg) {
     state send_state;
     string response_msg;
